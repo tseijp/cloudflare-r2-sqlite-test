@@ -1,0 +1,43 @@
+{
+        "name": "designer",
+        "type": "module",
+        "scripts": {
+                "dev": "vite",
+                "build": "DO_NOT_BUILD",
+                "preview": "DO_NOT_PREVIEW",
+                "deploy": "DO_NOT_DEPLOY",
+                "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+        },
+        "dependencies": {
+                "@material-symbols/svg-400": "^0.45.5",
+                "hono": "^4.12.27",
+                "react": "^19.2.7",
+                "react-dom": "^19.2.7",
+                "swr": "^2.4.2",
+                "tailwindcss": "^4.3.2"
+        },
+        "devDependencies": {
+                "@auth/core": "^0.34.3",
+                "@auth/drizzle-adapter": "^1.11.2",
+                "@cloudflare/vite-plugin": "^1.43.0",
+                "@hono/auth-js": "^1.1.1",
+                "@tailwindcss/vite": "^4.3.2",
+                "@types/react": "^19.2.17",
+                "@types/react-dom": "^19.2.3",
+                "@vitejs/plugin-react": "^6.0.3",
+                "drizzle-kit": "^0.31.10",
+                "drizzle-orm": "^0.45.2",
+                "partyserver": "^0.5.8",
+                "partysocket": "^1.3.0",
+                "vite": "^8.1.3",
+                "wrangler": "^4.107.0"
+        },
+        "packageManager": "pnpm@11.10.0",
+        "devEngines": {
+                "packageManager": {
+                        "name": "pnpm",
+                        "version": "11.10.0",
+                        "onFail": "download"
+                }
+        }
+}

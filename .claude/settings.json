@@ -1,0 +1,26 @@
+{
+        "env": {
+                "CLAUDE_CODE_EFFORT_LEVEL": "xhigh"
+        },
+        "permissions": {
+                "deny": ["Bash(npm:*)", "Bash(npx:*)", "Bash(tsc:*)", "Bash(npm run:*)", "Bash(npx vitest:*)", "Bash(pnpm tsc:*)", "Bash(pnpm exec tsc:*)", "mcp__ide"],
+                "allow": ["Bash(pnpm:*)", "Bash(node:*)", "Bash(pnpx vitest:*)", "Bash(cd:*)", "Bash(ls:*)", "Bash(cat:*)", "Bash(grep:*)", "Bash(rg:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(find:*)", "Bash(wc:*)", "Bash(awk:*)", "Bash(sed:*)", "Bash(echo:*)", "Bash(printf:*)", "Bash(mkdir:*)", "Bash(touch:*)", "Bash(cp:*)", "Bash(mv:*)", "Bash(rm:*)", "Bash(tee:*)", "Bash(sort:*)", "Bash(uniq:*)", "Bash(cut:*)", "Bash(tr:*)", "Bash(xargs:*)", "Bash(diff:*)", "Bash(pwd:*)", "Bash(true:*)", "Bash(false:*)", "Bash(test:*)", "Bash(date:*)", "Bash(which:*)", "Bash(env:*)", "Bash(export:*)", "Bash(magick:*)", "Bash(claude mcp *)"]
+        },
+        "autoMode": {
+                "allow": ["$defaults", "Writing skills, agents and commands under .claude/ in this project is allowed: the user authors them through Claude and reviews them"]
+        },
+        "hooks": {
+                "Stop": [
+                        {
+                                "hooks": [
+                                        {
+                                                "type": "command",
+                                                "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-message.sh",
+                                                "timeout": 10
+                                        }
+                                ]
+                        }
+                ]
+        },
+        "spinnerTipsEnabled": false
+}
