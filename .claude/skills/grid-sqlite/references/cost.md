@@ -48,7 +48,7 @@ image を丸ごと保存する 1 回のコストは file byte に比例し (VACU
 
 ## 5. 複製器と差分 object
 
-採用する複製器は WAL を一定周期 (既定 1 秒) で読み、新しい frame を 1 つの差分 object にして object storage へ送る。差分 object は 100 byte の header (magic、flags、page size、適用後の page 数、TXID の最小と最大、時刻、適用前 checksum、WAL の offset と size と salt、node id) に、page ごとの 6 byte header (page 番号と flags) と 4 byte の圧縮後 size と lz4 block が続き、6 byte の零終端、page 番号と絶対 offset と frame size の varint 3 本 × page 数と 8 byte の index size からなる page index、16 byte の trailer (適用後 checksum と file 全体の CRC-64) で終わる。file は不変であり、名前が TXID の範囲を表す。
+採用する複製器 (litestream) は WAL を一定周期 (既定 1 秒) で読み、新しい frame を 1 つの差分 object にして object storage へ送る。差分 object は 100 byte の header (magic、flags、page size、適用後の page 数、TXID の最小と最大、時刻、適用前 checksum、WAL の offset と size と salt、node id) に、page ごとの 6 byte header (page 番号と flags) と 4 byte の圧縮後 size と lz4 block が続き、6 byte の零終端、page 番号と絶対 offset と frame size の varint 3 本 × page 数と 8 byte の index size からなる page index、16 byte の trailer (適用後 checksum と file 全体の CRC-64) で終わる。file は不変であり、名前が TXID の範囲を表す。
 
 差分 object は圧縮段階を持つ。毎 sync で L0 が生まれ、30 秒ごとに L1、5 分ごとに L2、1 時間ごとに L3 へまとめられ、上位では同じ page 番号の最新だけが残る。snapshot は 24 時間ごとの全 page であり、L0 は 5 分で消える。読み側は index だけを memory に持ち (page 番号 → object 内 offset)、page は要求時に取得して LRU (既定 10MB) に置き、1 秒ごとに新しい object を見に行く。読み側は既定で read-only で、書き込み mode は単一 writer を前提に衝突を検出だけする。1GB 境界の lock page は決して object に含めない。
 
