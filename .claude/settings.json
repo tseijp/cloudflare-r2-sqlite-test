@@ -9,18 +9,5 @@
         "autoMode": {
                 "allow": ["$defaults", "Writing skills, agents and commands under .claude/ in this project is allowed: the user authors them through Claude and reviews them"]
         },
-        "hooks": {
-                "Stop": [
-                        {
-                                "hooks": [
-                                        {
-                                                "type": "command",
-                                                "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-message.sh",
-                                                "timeout": 10
-                                        }
-                                ]
-                        }
-                ]
-        },
         "spinnerTipsEnabled": false
 }
