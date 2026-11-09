@@ -32,25 +32,27 @@ index は追加 1 行の frame を 2 倍から 11 倍に増やし、DROP COLUMN 
 
 孤児 (本体に無い位置を指す装飾) は 0 件が常態であり、1 件でも gate を落とす。
 
-### 1.6. 複製は image の丸ごとではなく WAL frame の単位で object storage へ送る
+### 1.6. 保存は image の丸ごとではなく WAL frame から取った汚れた page の単位で object storage へ送る
 
-送った byte 数は編集で汚れた page 数に比例し、file の大きさには比例しない。
-復元した image は元の image と整合 (integrity と行数と checksum) し、任意の TXID の時点へ戻せる。
+1 回の save は 1 回の put で、送った byte 数は編集で汚れた page 数に比例し、file の大きさには比例しない。
+差分が溜まったら、その save だけ全 page を送り、古い object を 1 回の delete で消す。こうして object 数が save 回数に比例して増えないようにする。
+開き直した image は最後の save と整合 (integrity と行数と checksum) し、開くときは index を読んでから SQL が要求した page だけを range で取る。
 
 ### 1.7. LLM が観測する面は窓と schema と SQL の返答だけであり、どれも行数 N に対して定数か対数で収まる
 
 ## 2. 構成
 
 ```
- browser ──yjs (窓: layout + 表示範囲の行)──► Durable Object ──WAL frame──► object storage
-    │                                           │  sqlite image (memory)        ├─ snapshot (全 page)
-    │ gesture → act                             │  act → SQL → 窓を patch       ├─ 差分 object (L0 … L3)
-    └───────────────────────────────────────────┘                               └─ page index を先に読む
+ browser ──yjs (窓: layout + 表示範囲の行)──► Durable Object ──save: 汚れた page──► object storage
+    │                                           │  parse → plan → exec            ├─ <txid>.full (全 page)
+    │ gesture → act                             │  vfs → ship → view              ├─ <txid>.diff (汚れた page)
+    └───────────────────────────────────────────┘                                 └─ 末尾の page index を先に読む
  LLM ──MCP (窓 / schema / SQL)──────────────────┘
 ```
 
-image は Durable Object の memory に 1 つだけ開かれ、起動時に snapshot と差分 object から復元される。
-表示範囲が動いたときだけ SQL で範囲を読み直し、窓の入れ替えは編集とは別の origin で transact して undo の対象から外す。
+image は Durable Object の memory に 1 つだけ開かれる。起動時には最後の full と後続の diff の index だけを読み、page は SQL が要求したときに取り寄せる。
+保存は DO が明示的に呼ぶ save だけで行い、時間で常駐する仕組みは持たない。
+表示範囲が動いたときだけ SQL で範囲を読み直し、窓の入れ替えは編集の履歴に入れない。
 
 ## 3. 計測の流儀
 
@@ -61,13 +63,14 @@ image は Durable Object の memory に 1 つだけ開かれ、起動時に snap
 
 runner は `.bench/run.mjs` 1 本で、入力は `.bench/data/` の fixtures、出力は `.bench/out/` の台帳 1 行 (JSON) である。
 台帳には runner と `src/` の内容 hash を併記し、hash が一致しない台帳は無効とする。
-製品コードから runner を参照してはならず、runner は製品の公開面 (storage adapter / SQL / tree) だけを叩く。
+製品コードから runner を参照してはならず、runner は `references/contract.md` の面だけを叩き、`src/` を読まない。
 
 ## 4. 参照表
 
 | 場面                                              | 読む file                |
 | ------------------------------------------------- | ------------------------ |
 | 点数の式と gate、台帳の形                         | `references/score.md`    |
+| runner が製品に触れてよい面                       | `references/contract.md` |
 | fixtures の分類と取り込み契約                     | `references/fixtures.md` |
 | page / frame / 差分 object / yjs のコスト model   | `references/cost.md`     |
 | table 設計の正規化と崩し方、宣言から DDL への写像 | `references/tables.md`   |

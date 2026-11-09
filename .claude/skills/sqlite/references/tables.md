@@ -41,7 +41,7 @@ erDiagram
 | 行を消す                | ROW と CELL と MARK と CELL_STYLE を 4 文                         | `DELETE FROM page_x` と装飾 2 table の `DELETE … WHERE row = ?` を同じ transaction | 1 から 3 frame                          |
 | 列を足す                | COLUMN 1 行                                                       | `ALTER TABLE page_x ADD COLUMN`                                                    | 1 frame                                 |
 | 列名を変える            | COLUMN 1 行                                                       | `RENAME COLUMN` と装飾 2 table の `UPDATE … SET col = ? WHERE col = ?`             | 1 frame + 装飾件数 ÷ f                  |
-| 列を消す                | COLUMN 1 行 + CELL の該当 column 全削除                           | layout から外すだけにし、物理 DROP は snapshot 生成時に相乗り                      | 0 frame (遅延)                          |
+| 列を消す                | COLUMN 1 行 + CELL の該当 column 全削除                           | `_drop:` で始まる名前へ RENAME し、物理 DROP は full を送る save に相乗り          | 1 frame + 装飾件数 ÷ f (DROP は遅延)    |
 | 並べ替えて窓を読む      | pivot した上で ORDER BY                                           | `ORDER BY "列" IS NULL, "列" LIMIT ? OFFSET ?`                                     | 全走査 O(N)。index を作らない           |
 | 絞り込み / group / 検索 | pivot した上で WHERE / GROUP BY / LIKE                            | `WHERE "列" = ?` / `GROUP BY "列"` / `LIKE`                                        | 全走査 O(N)                             |
 | CSV を取り込む          | ROW と CELL を行 × 列 件                                          | `INSERT` 行数件を 1 transaction                                                    | O(N)、file 全 page                      |
@@ -52,36 +52,33 @@ erDiagram
 
 正規形の痛みは 1 点に集中する。
 窓・並べ替え・集計・LLM の SQL が全て pivot を要し、SQL が列数に比例して長くなり、1 cell 1 行の table は typed 横持ちの 1.2 から 2.8 倍の page を占める。
-他方で正規形が得意な「列の追加と削除が DML で済む」利点は、ADD COLUMN が 1 frame であることと DROP を snapshot に遅らせることで横持ちでも手に入る。
+他方で正規形が得意な「列の追加と削除が DML で済む」利点は、ADD COLUMN が 1 frame であることと DROP を full の save に遅らせることで横持ちでも手に入る。
 
 ## 3. 到達点: 崩した形
 
 ```mermaid
 erDiagram
-    IMAGE ||--|| META : "layout と設定の snapshot"
     IMAGE ||--o{ PAGE_X : "1 page 1 table"
-    PAGE_X ||--o{ CELL_STYLE : "同じ transaction で cascade"
+    PAGE_X ||--o{ COL : "既定から外れた列だけ"
+    PAGE_X ||--o{ STYLE : "同じ transaction で cascade"
     PAGE_X ||--o{ MARK : "同じ transaction で cascade"
-    META { text key PK  blob bytes }
-    PAGE_X { int _id PK  int _at  int _up  real _pos  int _trashed  int _pinned  text _src  any 利用者の列 }
-    CELL_STYLE { text page PK  int row PK  text col PK  text json }
+    PAGE_X { int _id PK  any 利用者の列 }
+    COL { text page PK  text name PK  text type  int width  real pos  int hidden  text options }
+    STYLE { text page PK  int row PK  text col PK  text json }
     MARK { text page PK  int row PK  text col PK  int from PK  text attr PK  int to  text val }
 ```
 
-PAGE、COLUMN、OPTION、SECTION、ITEM、CHILD は sqlite の table にならず、yjs の layout として 1 つの snapshot blob (META) に入る。
-
-理由は、次の 3 つ。
-
-- これらを読む SQL が「page ごとに全部」しか無く列の値をまたぐ結合が存在しないこと
-- key value store と同じ読み方しかしないものに table を与えても page を増やすだけであること
-- そして行数 N に依存しないので snapshot 1 枚が常に小さいこと
+PAGE は page table そのもので、page 名が table 名、並びは sqlite_master の作成順である。
+COLUMN の存在と並びは物理 schema (`pragma_table_info`) が唯一の正であり、`_col` は既定 (物理型どおりの種類、幅 3、表示、選択肢無し) から外れた列の layout だけを持つ装飾 table である。
+こうすると列の追加と改名は物理 schema だけの変更で 1 frame に収まり、SQL で直接足された列もそのまま layout に現れ、layout と物理 schema が食い違う状態が作れない。
+SECTION、ITEM、CHILD は方眼紙の PoC には現れない。
 
 CELL は PAGE_X の列へ畳み込まれ、列名は利用者が付けた名前そのもの (日本語可、同名は `名前 (2)`) になる。
 OPTION は列の layout に選択肢の配列として入り、値は選択肢の文字列をそのまま TEXT で持つ (複数選択は区切り文字で結合)。
 辞書 table と整数 flag にしない理由は、1 列の値が 2 table にまたがる二重管理を避けることと、group by と LIKE が TEXT のままで同じ速さで効くことである。
 
-物理 schema (sqlite_master) と layout (META) は 2 つの正になるので、「layout の記入欄が指す列は必ず物理に存在する」を judge が確認する。
-物理にあって layout に無い列は、遅延 DROP 待ちの列として許す。
+`_drop:` で始まる物理列は削除済みの列であり、layout にも窓にも現れず、full の save の直前に物理的に DROP される。
+`_col`、`_style`、`_mark` が、物理に無い列や行を指す件数は 0 が常態である。
 
 ## 4. system 列
 
@@ -132,8 +129,8 @@ page の既定の列は宣言 1 つで layout の記入欄と DDL と既定値�
 | ---------- | ------------------------------------------- | --------------------- | ---------------------------- |
 | 列の追加   | ADD COLUMN                                  | 1                     | 操作のたびに即時             |
 | 列名の変更 | RENAME COLUMN + 装飾の col 更新             | 1 + 装飾件数 ÷ f      | 即時、同じ transaction       |
-| 列の削除   | layout から外す → snapshot 時に DROP COLUMN | 0 → snapshot に相乗り | 遅延                         |
-| 種類の変更 | 物理型は変えず layout の kind だけ変える    | 0                     | 数値の並べ替えは CAST で行う |
+| 列の削除   | `_drop:` へ RENAME → full の save で DROP   | 1 → full に相乗り     | 遅延                         |
+| 種類の変更 | 物理型は変えず `_col` の type だけ変える    | 1                     | 数値の並べ替えは CAST で行う |
 | 型の変更   | table 再作成                                | file の 2 倍          | 行わない                     |
 
-列幅と並び順と選択肢は layout だけの変更であり、frame を生まない。
+列幅と並び順と選択肢は `_col` の 1 行の upsert であり、1 frame を生む。

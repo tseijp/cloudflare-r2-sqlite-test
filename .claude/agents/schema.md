@@ -23,7 +23,7 @@ tools: Read, Bash
 - system 列が `_` で始まり、作成と更新の時刻が記入欄の列を持たないこと
 - 装飾 2 table が WITHOUT ROWID で (page, row, col) を先頭に持ち、本体の行削除と列削除と同じ transaction で消えること
 - 列名の変更が装飾の col 更新を伴うこと
-- 列の削除が layout からの除去だけで、物理 DROP が snapshot の生成に相乗りしていること
+- 列の削除が `_drop:` への改名と装飾の削除だけで、物理 DROP が full の save に相乗りしていること
 - 型の変更が物理操作にならないこと
 - layout の記入欄が指す列が物理 schema に存在すること
 - 宣言から DDL への写像が tables.md の表に一致し、date / datetime が 1 つの書式に正規化されること

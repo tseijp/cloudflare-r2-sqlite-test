@@ -31,14 +31,14 @@ table の外のマスは data も装飾も持たず、列幅の合計が 35 を�
 | 行を足す                           | INSERT 1 文                                                                       | 窓の末尾なら行 1 key                  | 1 から 2         |
 | 行を消す                           | DELETE 3 文 (本体と装飾 2 table) を 1 transaction                                 | 行 1 key を delete                    | 1 から 3         |
 | 列を足す                           | ADD COLUMN                                                                        | layout に記入欄 1 つ (幅のマス数付き) | 1                |
-| 列幅を drag                        | 無し                                                                              | layout の幅                           | 0                |
+| 列幅を drag                        | `_col` の 1 行を upsert (drag 中は browser の一時状態だけ)                        | layout の幅                           | 1                |
 | 列名を変える                       | RENAME COLUMN + 装飾の col 更新                                                   | layout の名前                         | 1 + 装飾件数 ÷ f |
-| 列を消す                           | 無し (snapshot 時に DROP)                                                         | layout から外す                       | 0                |
+| 列を消す                           | `_drop:` へ RENAME と装飾の delete (DROP は full の save 時)                       | layout から外す                       | 1 から 2         |
 | 並べ替え / 絞り込み / group / 検索 | 窓の読み直しの文が ORDER BY / WHERE を持つ                                        | 一時 key と窓の入れ替え               | 0 (読みは O(N))  |
 | scroll                             | `BETWEEN` の範囲読み直し                                                          | 窓の入れ替え (別 origin)              | 0                |
 | CSV の取り込み                     | INSERT を 1 transaction                                                           | 窓の先頭を載せ直す                    | O(N)             |
 | CSV の出力                         | 全走査の SELECT を stream                                                         | 無し                                  | 0                |
-| undo / redo                        | 逆向きの UPDATE                                                                   | UndoManager が窓以外を巻き戻す        | 1                |
+| undo / redo                        | act が返した逆向きの op を同じ経路で流す                                          | 窓を読み直す                          | 元の op と同じ   |
 
 undo は tree の履歴から SQL を導いて適用するので、窓に無い行の編集は履歴に入らない。
 これは履歴が窓の生存期間に限られるという仕様であり、全履歴は複製側の TXID が担う。
@@ -48,7 +48,7 @@ undo は tree の履歴から SQL を導いて適用するので、窓に無い�
 窓は表示中 page の連続する w 行 (既定 50、前後に 1 窓ぶんの先読み) と、横 35 マスの範囲である。
 tree の key は `rows/<_id>` の形で窓の行だけを持ち、scroll で範囲が外れた行は delete し新しい行を set する。
 入れ替えは `win` origin で transact し、編集は `user` origin で transact する。
-tree の snapshot (保存と undo の対象) は窓の key を含めない。
+tree は保存しない。tree の大きさは窓の key を除くと行数 N に依存しない。
 
 窓の読みは本体 1 文と装飾 2 文の 3 文で、どれも (page, row) の範囲走査であり行数 N に依存しない。
 並べ替えや絞り込みを選んでいるときの窓は全走査の結果から LIMIT と OFFSET で切るので O(N) になるが、1 行あたりの走査は µs の桁であり 10^6 行でも秒を超えない。
