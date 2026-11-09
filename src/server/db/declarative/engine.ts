@@ -5,7 +5,8 @@ import type { Dirty, File, Load, Q } from '../procedural/share/types'
 
 interface _Config {
         pageSize: number
-        ahead: number
+        head: number
+        patience: number
         widest: number
         commit: number
         load?: Load
@@ -27,16 +28,19 @@ export const createEngine = async (config: _Config) => {
         let _off = 0
         let _commit = config.commit
         let _version = 0
+        let _edge = 0
+        let _streak = 0
         let _dirty = new Map<number, Uint8Array>()
         let _tail: Promise<unknown> = Promise.resolve()
         const _wal = flatFile(() => void (_off = 0))
         const _fill = async (pgnos: number[] | null, ahead: number) => {
                 const got = await config.load!(pgnos, (pgno) => _main.pages.has(pgno), ahead)
                 for (const [pgno, data] of got) if (!_main.pages.has(pgno)) _main.pages.set(pgno, data)
+                _edge = got.reduce((n, [pgno]) => Math.max(n, pgno + 1), 0)
         }
         _files.set(_name, _main)
         _files.set(`${_name}-wal`, _wal)
-        if (config.load && config.commit) await _fill([1], config.ahead)
+        if (config.load && config.commit) await _fill([1], config.head)
         const _db = await _sqlite3.open_v2(_name, 6, 'grid')
         const _q: Q = (text, params, limit) => stepSql(_sqlite3, _db, text, params, limit)
         const _capture = () => {
@@ -58,7 +62,9 @@ export const createEngine = async (config: _Config) => {
                 const misses = [..._main.miss]
                 _main.miss.clear()
                 const isRetry = misses.length > 0 && !!config.load
-                if (isRetry) return _fill(misses, Math.min(config.widest, config.ahead * 2 ** tries)).then(() => _attempt(fn, isWrite, tries + 1))
+                _streak = misses.includes(_edge) ? _streak + 1 : 0
+                const ahead = Math.min(config.widest, 2 ** Math.max(_streak, Math.floor(tries / config.patience)))
+                if (isRetry) return _fill(misses, ahead).then(() => _attempt(fn, isWrite, tries + 1))
                 _capture()
                 return 'error' in settled ? Promise.reject(settled.error) : settled.value
         }
