@@ -1,13 +1,13 @@
-import { TREE } from './utils/share/const.ts'
-import { createLayout } from './layout.ts'
-import { createHistory } from './history.ts'
-import { createMove } from './move.ts'
-import { createEdit } from './edit.ts'
-import { dump } from './dump.ts'
+import { TREE } from './utils/share/const'
+import { createLayout } from './layout'
+import { createHistory } from './history'
+import { createMove } from './move'
+import { createEdit } from './edit'
+import { dump } from './dump'
 import type * as Y from 'yjs'
-import type { Run, Tree, Window } from './utils/share/types.ts'
+import type { Run, Tree, Window } from './utils/share/types'
 
-export type { Layout, PageDecl, Run, Window } from './utils/share/types.ts'
+export type { Layout, PageDecl, Run, Window } from './utils/share/types'
 
 export const createWindow = (doc: Y.Doc, run: Run): Window => {
         const _tree = doc.getMap(TREE) as Tree

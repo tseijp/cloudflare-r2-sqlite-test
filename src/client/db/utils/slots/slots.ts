@@ -1,4 +1,4 @@
-import type { View, Win } from '../share/types.ts'
+import type { View, Win } from '../share/types'
 
 const _startOf = (win: Win) => Math.max(1, win.from)
 

@@ -1,10 +1,10 @@
-import { decoKey, isWindowKey, rowKey } from './utils/keys/keys.ts'
-import { KEY } from './utils/share/const.ts'
-import { keysOf, put } from './utils/tree/tree.ts'
-import { decosOf, putDeco } from './deco.ts'
-import { idOf, rowsOf, writeRow } from './row.ts'
-import type { Tree, View } from './utils/share/types.ts'
-import type { Queried, Req } from '../utils/share/types.ts'
+import { decoKey, isWindowKey, rowKey } from './utils/keys/keys'
+import { KEY } from './utils/share/const'
+import { keysOf, put } from './utils/tree/tree'
+import { decosOf, putDeco } from './deco'
+import { idOf, rowsOf, writeRow } from './row'
+import type { Tree, View } from './utils/share/types'
+import type { Queried, Req } from '../utils/share/types'
 
 const _viewOf = (req: Req) => {
         const view: View = {}

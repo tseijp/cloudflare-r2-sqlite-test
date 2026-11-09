@@ -1,11 +1,11 @@
-import { formatKey } from './utils/keys/keys.ts'
-import { FLAG_NO_CHECKSUM, SNAPSHOT_LEVEL } from './utils/share/const.ts'
-import { applySums, seedSums } from './crc.ts'
-import { encodeObject } from './encode.ts'
-import { loadState } from './state.ts'
-import { compressPages, latestPages, splitImage } from './pages.ts'
-import type { Frame } from '../utils/share/types.ts'
-import type { Context, ObjectHeader, Page, Pushed } from './utils/share/types.ts'
+import { formatKey } from './utils/keys/keys'
+import { FLAG_NO_CHECKSUM, SNAPSHOT_LEVEL } from './utils/share/const'
+import { applySums, seedSums } from './crc'
+import { encodeObject } from './encode'
+import { loadState } from './state'
+import { compressPages, latestPages, splitImage } from './pages'
+import type { Frame } from '../utils/share/types'
+import type { Context, ObjectHeader, Page, Pushed } from './utils/share/types'
 
 const _createHeader = (ctx: Context, fields: Pick<ObjectHeader, 'flags' | 'pageSize' | 'commit' | 'minTxid' | 'maxTxid' | 'preApply'>): ObjectHeader => {
         const _wal = { walOffset: 0, walSize: 0, walSalt1: 0, walSalt2: 0 }

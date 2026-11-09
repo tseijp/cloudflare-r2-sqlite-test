@@ -1,8 +1,8 @@
-import { HEAD } from './utils/share/const.ts'
-import { offsets, rowsOf, squaresOf } from './utils/slots/squares.ts'
-import { slotsOf } from './utils/slots/slots.ts'
-import { readCols, readDeco, readEditing, readPages, readRow, readSel, readView, readWin } from './tree.ts'
-import type { Tree } from './utils/share/types.ts'
+import { HEAD } from './utils/share/const'
+import { offsets, rowsOf, squaresOf } from './utils/slots/squares'
+import { slotsOf } from './utils/slots/slots'
+import { readCols, readDeco, readEditing, readPages, readRow, readSel, readView, readWin } from './tree'
+import type { Tree } from './utils/share/types'
 
 export const readPaper = (tree: Tree, isMine: boolean) => {
         const _win = readWin(tree)

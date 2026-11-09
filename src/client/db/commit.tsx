@@ -1,10 +1,10 @@
-import { HEAD, WINDOW } from './utils/share/const.ts'
-import { NEW_COL } from './utils/share/config.ts'
-import { span } from './utils/slots/squares.ts'
-import { idAt } from './utils/slots/slots.ts'
-import { readCols, readDeco, readRow, readSel, readView, readWin } from './tree.ts'
-import { fitMarks, isSame, parse } from './utils/value/value.ts'
-import type { Col, Editing, Order, Send, Tree, Win } from './utils/share/types.ts'
+import { HEAD, WINDOW } from './utils/share/const'
+import { NEW_COL } from './utils/share/config'
+import { span } from './utils/slots/squares'
+import { idAt } from './utils/slots/slots'
+import { readCols, readDeco, readRow, readSel, readView, readWin } from './tree'
+import { fitMarks, isSame, parse } from './utils/value/value'
+import type { Col, Editing, Order, Send, Tree, Win } from './utils/share/types'
 
 const _nextOrder = (prev: Order | undefined, col: string): Order | undefined => {
         if (prev?.col !== col) return { col, dir: 'asc' }

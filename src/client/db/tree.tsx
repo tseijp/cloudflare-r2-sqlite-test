@@ -1,7 +1,7 @@
-import { KEY } from './utils/share/const.ts'
-import { colKey, decoKey, isColKey, isPageKey, rowKey } from './utils/keys/keys.ts'
+import { KEY } from './utils/share/const'
+import { colKey, decoKey, isColKey, isPageKey, rowKey } from './utils/keys/keys'
 import type * as Y from 'yjs'
-import type { Col, Deco, Editing, Page, Pair, Row, Sel, Tree, View, Win } from './utils/share/types.ts'
+import type { Col, Deco, Editing, Page, Pair, Row, Sel, Tree, View, Win } from './utils/share/types'
 
 const _byPos = <T extends { pos: number }>(a: T, b: T) => a.pos - b.pos
 

@@ -1,9 +1,9 @@
-import { seedSums } from './crc.ts'
-import { readCommit, splitImage } from './pages.ts'
-import { createPlan } from './plan.ts'
-import { readIndex, readPages } from './read.ts'
-import { loadState } from './state.ts'
-import type { Context, ObjectIndex, Page, ReplicaState } from './utils/share/types.ts'
+import { seedSums } from './crc'
+import { readCommit, splitImage } from './pages'
+import { createPlan } from './plan'
+import { readIndex, readPages } from './read'
+import { loadState } from './state'
+import type { Context, ObjectIndex, Page, ReplicaState } from './utils/share/types'
 
 const _createImage = (maxPgno: number) => {
         let _pageSize = 0

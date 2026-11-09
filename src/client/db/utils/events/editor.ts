@@ -1,6 +1,6 @@
-import { AFTER } from '../share/config.ts'
-import type { Blurred, Typed } from './events.ts'
-import type { Editing } from '../share/types.ts'
+import { AFTER } from '../share/config'
+import type { Blurred, Typed } from './events'
+import type { Editing } from '../share/types'
 
 interface _Parts {
         gesture: { stop(): void; step(dr: number, dc: number, isExtend: boolean): void; target(): Editing | null }

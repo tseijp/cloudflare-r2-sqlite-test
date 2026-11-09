@@ -1,11 +1,11 @@
-import { createImage } from './image/index.ts'
-import { createReplica } from './replica/index.ts'
-import { createWindow } from './sync/index.ts'
-import type { Replica } from './replica/index.ts'
-import type { Run } from './sync/index.ts'
-import type { Image, Input } from './utils/share/types.ts'
+import { createImage } from './image/index'
+import { createReplica } from './replica/index'
+import { createWindow } from './sync/index'
+import type { Replica } from './replica/index'
+import type { Run } from './sync/index'
+import type { Image, Input } from './utils/share/types'
 
-export type * from './utils/share/types.ts'
+export type * from './utils/share/types'
 
 const _sourceOf = (input: Input, replica: Replica | null) => {
         if (input.bytes) return Promise.resolve(input.bytes)

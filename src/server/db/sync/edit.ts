@@ -1,8 +1,8 @@
-import { capture, isRefresh } from './capture.ts'
-import { inWindow } from './row.ts'
-import { patch } from './patch.ts'
-import type { Op } from '../utils/share/types.ts'
-import type { Ctx, History, Run, Side, Step } from './utils/share/types.ts'
+import { capture, isRefresh } from './capture'
+import { inWindow } from './row'
+import { patch } from './patch'
+import type { Op } from '../utils/share/types'
+import type { Ctx, History, Run, Side, Step } from './utils/share/types'
 
 export const createEdit = (ctx: Ctx, run: Run, history: History, refresh: () => Promise<void>) => {
         const _write = (ops: Op[]) => () => ops.forEach((op) => patch(ctx, op))

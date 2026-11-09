@@ -1,9 +1,9 @@
-import { HEAD } from './utils/share/const.ts'
-import { clamp } from './utils/slots/squares.ts'
-import { idAt, stepOf } from './utils/slots/slots.ts'
-import { readCols, readRow, readSel, readView, readWin, writeEditing, writeSel } from './tree.ts'
-import { format } from './utils/value/value.ts'
-import type { Cell, Editing, Tree, Win } from './utils/share/types.ts'
+import { HEAD } from './utils/share/const'
+import { clamp } from './utils/slots/squares'
+import { idAt, stepOf } from './utils/slots/slots'
+import { readCols, readRow, readSel, readView, readWin, writeEditing, writeSel } from './tree'
+import { format } from './utils/value/value'
+import type { Cell, Editing, Tree, Win } from './utils/share/types'
 
 export const createGesture = (tree: Tree, reveal: (row: number) => void) => {
         let _seed = ''

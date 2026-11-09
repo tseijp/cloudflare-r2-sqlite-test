@@ -1,4 +1,4 @@
-import { KEY } from '../share/const.ts'
+import { KEY } from '../share/const'
 
 export const colKey = (pid: string, cid: string) => `${KEY.pages}${pid}${KEY.cols}${cid}`
 

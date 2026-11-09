@@ -1,8 +1,8 @@
-import { DECO, MARK, STYLE, SYSTEM } from './utils/share/const.ts'
-import { quote } from './ddl.ts'
-import type { MarkRow, Queried, Req, Schema, StyleRow, Value } from '../utils/share/types.ts'
-import type { Columns } from './ddl.ts'
-import type { Sql } from './sql.ts'
+import { DECO, MARK, STYLE, SYSTEM } from './utils/share/const'
+import { quote } from './ddl'
+import type { MarkRow, Queried, Req, Schema, StyleRow, Value } from '../utils/share/types'
+import type { Columns } from './ddl'
+import type { Sql } from './sql'
 
 const _orderOf = (req: Req) => {
         if (!req.order) return '"_id"'

@@ -1,8 +1,8 @@
-import { HEAD } from './utils/share/const.ts'
-import { CSS } from './utils/share/config.ts'
-import { box, letterOf, rectOf } from './utils/slots/squares.ts'
-import { format, styleOf } from './utils/value/value.ts'
-import type { Col, Deco, Page, Row, Sel } from './utils/share/types.ts'
+import { HEAD } from './utils/share/const'
+import { CSS } from './utils/share/config'
+import { box, letterOf, rectOf } from './utils/slots/squares'
+import { format, styleOf } from './utils/value/value'
+import type { Col, Deco, Page, Row, Sel } from './utils/share/types'
 
 export const Ruler = ({ squares }: { squares: number }) => (
         <div style={CSS.band}>

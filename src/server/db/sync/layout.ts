@@ -1,9 +1,9 @@
 import * as Y from 'yjs'
-import { ORIGIN, TREE } from './utils/share/const.ts'
-import { colKey, isColKey, isLayoutKey, isPageKey, pageKey } from './utils/keys/keys.ts'
-import { byPos, keysOf, put, uid } from './utils/tree/tree.ts'
-import { WIDTH } from './utils/config/config.ts'
-import type { Col, ColDecl, Layout, Page, PageDecl, Tree } from './utils/share/types.ts'
+import { ORIGIN, TREE } from './utils/share/const'
+import { colKey, isColKey, isLayoutKey, isPageKey, pageKey } from './utils/keys/keys'
+import { byPos, keysOf, put, uid } from './utils/tree/tree'
+import { WIDTH } from './utils/config/config'
+import type { Col, ColDecl, Layout, Page, PageDecl, Tree } from './utils/share/types'
 
 const _declarePage = (tree: Tree, page: PageDecl) => {
         const old = tree.get(pageKey(page.id)) as Page | undefined

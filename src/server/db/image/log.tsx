@@ -1,6 +1,6 @@
-import type { Edited, Frame } from '../utils/share/types.ts'
-import type { Sql } from './sql.ts'
-import type { File } from './vfs.ts'
+import type { Edited, Frame } from '../utils/share/types'
+import type { Sql } from './sql'
+import type { File } from './vfs'
 
 export const pageSizeOf = (data: Uint8Array) => {
         const raw = (data[16] << 8) | data[17]
@@ -35,7 +35,7 @@ export const createLog = (sql: Sql, file: File, start: number) => {
         flush()
         return {
                 flush,
-                guard: <T>(fn: () => T) => {
+                guard: <T,>(fn: () => T) => {
                         _settle()
                         return fn()
                 },

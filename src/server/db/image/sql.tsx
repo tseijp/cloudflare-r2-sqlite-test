@@ -1,6 +1,6 @@
-import { createBind } from './bind.ts'
-import { CACHE } from './utils/config/config.ts'
-import type { Result, Row } from '../utils/share/types.ts'
+import { createBind } from './bind'
+import { CACHE } from './utils/config/config'
+import type { Result, Row } from '../utils/share/types'
 
 const _ROW = 100
 

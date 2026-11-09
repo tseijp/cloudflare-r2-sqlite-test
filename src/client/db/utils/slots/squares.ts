@@ -1,6 +1,6 @@
-import { SQ, SQUARES, WIDTH, WINDOW } from '../share/const.ts'
-import { isEnd, lastPos } from './slots.ts'
-import type { Col, Range, Sel, View, Win } from '../share/types.ts'
+import { SQ, SQUARES, WIDTH, WINDOW } from '../share/const'
+import { isEnd, lastPos } from './slots'
+import type { Col, Range, Sel, View, Win } from '../share/types'
 
 export const offsets = (cols: Col[]) => cols.reduce((acc, col) => [...acc, acc[acc.length - 1] + col.width], [0])
 

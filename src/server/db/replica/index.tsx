@@ -1,14 +1,14 @@
-import { createConfig } from './utils/config/config.ts'
-import { createState } from './state.ts'
-import { compactLevel } from './compact.ts'
-import { pushFrames, pushSnapshot } from './push.ts'
-import { readIndex } from './read.ts'
-import { restoreImage } from './restore.ts'
-import { runTick } from './tick.ts'
-import type { Frame, Storage } from '../utils/share/types.ts'
-import type { Replica, ReplicaOptions } from './utils/share/types.ts'
+import { createConfig } from './utils/config/config'
+import { createState } from './state'
+import { compactLevel } from './compact'
+import { pushFrames, pushSnapshot } from './push'
+import { readIndex } from './read'
+import { restoreImage } from './restore'
+import { runTick } from './tick'
+import type { Frame, Storage } from '../utils/share/types'
+import type { Replica, ReplicaOptions } from './utils/share/types'
 
-export type { Replica, ReplicaOptions, Ticked } from './utils/share/types.ts'
+export type { Replica, ReplicaOptions, Ticked } from './utils/share/types'
 
 export const createReplica = (storage: Storage, options?: ReplicaOptions): Replica => {
         const _config = createConfig(options)

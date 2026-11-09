@@ -1,9 +1,9 @@
-import { SQ } from './utils/share/const.ts'
-import { around, visibleRows } from './utils/slots/squares.ts'
-import { isInside } from './utils/slots/slots.ts'
-import { readView, readWin } from './tree.ts'
-import type { Scrolled } from './utils/events/events.ts'
-import type { Send, Tree } from './utils/share/types.ts'
+import { SQ } from './utils/share/const'
+import { around, visibleRows } from './utils/slots/squares'
+import { isInside } from './utils/slots/slots'
+import { readView, readWin } from './tree'
+import type { Scrolled } from './utils/events/events'
+import type { Send, Tree } from './utils/share/types'
 
 interface _Sheet {
         scrollTop: number

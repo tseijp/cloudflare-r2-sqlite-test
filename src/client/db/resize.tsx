@@ -1,6 +1,6 @@
-import { widthAt } from './utils/slots/squares.ts'
-import { readCols, readWin, writeWidth } from './tree.ts'
-import type { Tree } from './utils/share/types.ts'
+import { widthAt } from './utils/slots/squares'
+import { readCols, readWin, writeWidth } from './tree'
+import type { Tree } from './utils/share/types'
 
 interface _Drag {
         page: string

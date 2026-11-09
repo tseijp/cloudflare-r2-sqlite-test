@@ -1,4 +1,4 @@
-import type { Frame, Storage } from '../../../utils/share/types.ts'
+import type { Frame, Storage } from '../../../utils/share/types'
 
 export interface ReplicaOptions {
         prefix?: string

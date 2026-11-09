@@ -1,4 +1,4 @@
-import type { ColType } from '../../../utils/share/types.ts'
+import type { ColType } from '../../../utils/share/types'
 
 export const STYLE = 'cell_style'
 

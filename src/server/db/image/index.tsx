@@ -1,10 +1,10 @@
-import { createColumns } from './ddl.ts'
-import { createEdit } from './edit.ts'
-import { openEngine } from './engine.ts'
-import { createLog, pageSizeOf } from './log.ts'
-import { createRead } from './read.ts'
-import { createStore } from './store.ts'
-import type { Image } from '../utils/share/types.ts'
+import { createColumns } from './ddl'
+import { createEdit } from './edit'
+import { openEngine } from './engine'
+import { createLog, pageSizeOf } from './log'
+import { createRead } from './read'
+import { createStore } from './store'
+import type { Image } from '../utils/share/types'
 
 export const createImage = async (bytes: Uint8Array | null, txid = 0): Promise<Image> => {
         const { sql: _sql, file: _file, close } = await openEngine(bytes)

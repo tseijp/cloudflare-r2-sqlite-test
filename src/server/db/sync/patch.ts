@@ -1,9 +1,9 @@
-import { colKey } from './utils/keys/keys.ts'
-import { put, uid } from './utils/tree/tree.ts'
-import { decoAt, putDeco, without } from './deco.ts'
-import { inWindow, writeCell } from './row.ts'
-import type { CellOp, ClearOp, ColAddOp, ColHideOp, ColRenameOp, Op, StyleOp } from '../utils/share/types.ts'
-import type { Ctx } from './utils/share/types.ts'
+import { colKey } from './utils/keys/keys'
+import { put, uid } from './utils/tree/tree'
+import { decoAt, putDeco, without } from './deco'
+import { inWindow, writeCell } from './row'
+import type { CellOp, ClearOp, ColAddOp, ColHideOp, ColRenameOp, Op, StyleOp } from '../utils/share/types'
+import type { Ctx } from './utils/share/types'
 
 const _PATCH: Record<Op['kind'], (ctx: Ctx, op: any) => void> = {
         cell: ({ tree }: Ctx, op: CellOp) => {

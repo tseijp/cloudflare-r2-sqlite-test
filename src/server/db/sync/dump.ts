@@ -1,7 +1,7 @@
-import { KEY } from './utils/share/const.ts'
-import { decoKey } from './utils/keys/keys.ts'
-import { readRow } from './row.ts'
-import type { Dump, Layout, Tree, Win } from './utils/share/types.ts'
+import { KEY } from './utils/share/const'
+import { decoKey } from './utils/keys/keys'
+import { readRow } from './row'
+import type { Dump, Layout, Tree, Win } from './utils/share/types'
 
 export const dump = (tree: Tree, layout: Layout): Dump => {
         const win = (tree.get(KEY.win) as Win | undefined) ?? null

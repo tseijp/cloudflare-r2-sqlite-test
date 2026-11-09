@@ -1,5 +1,5 @@
-import { MOVES } from '../share/config.ts'
-import type { Keys } from './events.ts'
+import { MOVES } from '../share/config'
+import type { Keys } from './events'
 
 interface _Parts {
         gesture: { step(dr: number, dc: number, isExtend: boolean): void; start(text?: string): void; isMine(): boolean }

@@ -1,4 +1,4 @@
-import { SQ } from '../share/const.ts'
+import { SQ } from '../share/const'
 
 export const MOVES: Record<string, [number, number]> = {
         ArrowUp: [-1, 0],

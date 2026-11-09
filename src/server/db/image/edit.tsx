@@ -1,9 +1,9 @@
-import { DECO, DROP, MARK, STYLE, SYSTEM_DDL } from './utils/share/const.ts'
-import { columnSql, quote } from './ddl.ts'
-import { normalize } from './utils/value/value.ts'
-import type { CellOp, ClearOp, ColAddOp, ColHideOp, ColRenameOp, Mark, Op, RowAddOp, RowRemoveOp, Sheet, StyleOp } from '../utils/share/types.ts'
-import type { Columns } from './ddl.ts'
-import type { Sql } from './sql.ts'
+import { DECO, DROP, MARK, STYLE, SYSTEM_DDL } from './utils/share/const'
+import { columnSql, quote } from './ddl'
+import { normalize } from './utils/value/value'
+import type { CellOp, ClearOp, ColAddOp, ColHideOp, ColRenameOp, Mark, Op, RowAddOp, RowRemoveOp, Sheet, StyleOp } from '../utils/share/types'
+import type { Columns } from './ddl'
+import type { Sql } from './sql'
 
 const _json = (list: unknown[]) => JSON.stringify(list)
 

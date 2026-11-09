@@ -1,7 +1,7 @@
-import { HEAD } from './utils/share/const.ts'
-import { readSel, readWin } from './tree.ts'
-import type { Pointer, Target } from './utils/events/events.ts'
-import type { Cell, Tree, Win } from './utils/share/types.ts'
+import { HEAD } from './utils/share/const'
+import { readSel, readWin } from './tree'
+import type { Pointer, Target } from './utils/events/events'
+import type { Cell, Tree, Win } from './utils/share/types'
 
 type _Hit = Cell & { kind: 'cell' | 'head' | 'sort' | 'width' }
 

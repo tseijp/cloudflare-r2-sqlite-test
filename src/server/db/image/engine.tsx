@@ -1,9 +1,9 @@
 // @ts-ignore
 import factory from 'wa-sqlite/dist/wa-sqlite.mjs'
-import { PAGE_SIZE, VFS } from './utils/config/config.ts'
-import { SETUP } from './utils/share/const.ts'
-import { createSql, openDb } from './sql.ts'
-import { createVfs } from './vfs.ts'
+import { PAGE_SIZE, VFS } from './utils/config/config'
+import { SETUP } from './utils/share/const'
+import { createSql, openDb } from './sql'
+import { createVfs } from './vfs'
 
 const _isWorker = () => typeof (globalThis as any).WebSocketPair === 'function'
 

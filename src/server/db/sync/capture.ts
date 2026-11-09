@@ -1,9 +1,9 @@
-import { REFRESH_KINDS } from './utils/share/const.ts'
-import { isSame } from './utils/tree/tree.ts'
-import { decoAt } from './deco.ts'
-import { inWindow, readRow } from './row.ts'
-import type { CellOp, ClearOp, ColRenameOp, Op, StyleOp } from '../utils/share/types.ts'
-import type { Ctx, Step } from './utils/share/types.ts'
+import { REFRESH_KINDS } from './utils/share/const'
+import { isSame } from './utils/tree/tree'
+import { decoAt } from './deco'
+import { inWindow, readRow } from './row'
+import type { CellOp, ClearOp, ColRenameOp, Op, StyleOp } from '../utils/share/types'
+import type { Ctx, Step } from './utils/share/types'
 
 const _stepOf = (apply: Op[], revert: Op[], rows: number[]): Step => ({ apply, revert, rows, item: null })
 

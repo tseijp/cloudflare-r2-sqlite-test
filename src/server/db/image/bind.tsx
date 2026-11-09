@@ -1,4 +1,4 @@
-import type { Row, Value } from '../utils/share/types.ts'
+import type { Row, Value } from '../utils/share/types'
 
 const _INTEGER = 1
 

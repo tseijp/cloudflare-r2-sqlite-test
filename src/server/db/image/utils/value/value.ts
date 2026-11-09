@@ -1,5 +1,5 @@
-import { TRUE } from '../share/const.ts'
-import type { ColType, Value } from '../../../utils/share/types.ts'
+import { TRUE } from '../share/const'
+import type { ColType, Value } from '../../../utils/share/types'
 
 const _DATE = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/
 

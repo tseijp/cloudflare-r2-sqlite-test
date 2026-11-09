@@ -1,10 +1,10 @@
-import { LIMIT } from './utils/config/config.ts'
-import { META } from './utils/share/const.ts'
-import type { Row, Value } from '../utils/share/types.ts'
-import type { Columns } from './ddl.ts'
-import type { Log } from './log.ts'
-import type { Sql } from './sql.ts'
-import type { File } from './vfs.ts'
+import { LIMIT } from './utils/config/config'
+import { META } from './utils/share/const'
+import type { Row, Value } from '../utils/share/types'
+import type { Columns } from './ddl'
+import type { Log } from './log'
+import type { Sql } from './sql'
+import type { File } from './vfs'
 
 const _UPSERT = `INSERT INTO ${META} (key, bytes) VALUES (?, ?) ON CONFLICT DO UPDATE SET bytes = excluded.bytes WHERE bytes IS NOT excluded.bytes`
 

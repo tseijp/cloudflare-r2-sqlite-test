@@ -1,8 +1,8 @@
-import { decodeText, decodeVarint, readU32, readU64 } from './utils/bytes/bytes.ts'
-import { decompress } from './utils/lz4/lz4.ts'
-import { CRC_SIZE, FRAME_HEADER_SIZE, HEADER_SIZE, INDEX_SIZE_FIELD, MAGIC, PAGE_HEADER_SIZE, TAIL_SIZE } from './utils/share/const.ts'
-import { checksumBytes } from './crc.ts'
-import type { Block, ObjectHeader, ObjectTail, Page, PageEntry, ParsedObject } from './utils/share/types.ts'
+import { decodeText, decodeVarint, readU32, readU64 } from './utils/bytes/bytes'
+import { decompress } from './utils/lz4/lz4'
+import { CRC_SIZE, FRAME_HEADER_SIZE, HEADER_SIZE, INDEX_SIZE_FIELD, MAGIC, PAGE_HEADER_SIZE, TAIL_SIZE } from './utils/share/const'
+import { checksumBytes } from './crc'
+import type { Block, ObjectHeader, ObjectTail, Page, PageEntry, ParsedObject } from './utils/share/types'
 
 export const parseHeader = (b: Uint8Array): ObjectHeader | null => {
         if (decodeText(b.subarray(0, 4)) !== MAGIC) return null

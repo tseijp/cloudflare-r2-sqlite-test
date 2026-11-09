@@ -1,4 +1,4 @@
-import { VFS } from './utils/config/config.ts'
+import { VFS } from './utils/config/config'
 
 export interface File {
         data: Uint8Array

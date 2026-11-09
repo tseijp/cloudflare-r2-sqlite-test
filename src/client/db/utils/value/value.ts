@@ -1,4 +1,4 @@
-import type { ColType, Mark, Value } from '../share/types.ts'
+import type { ColType, Mark, Value } from '../share/types'
 
 export const parse = (type: ColType, text: string): Value => {
         if (text === '') return null

@@ -1,4 +1,4 @@
-import { LZ4_HASH_BITS, LZ4_HASH_MUL, LZ4_LAST_LITERALS, LZ4_MAX_DISTANCE, LZ4_MF_LIMIT, LZ4_MIN_MATCH } from '../share/const.ts'
+import { LZ4_HASH_BITS, LZ4_HASH_MUL, LZ4_LAST_LITERALS, LZ4_MAX_DISTANCE, LZ4_MF_LIMIT, LZ4_MIN_MATCH } from '../share/const'
 
 export const compressBound = (n: number) => n + Math.floor(n / 255) + 16
 

@@ -1,4 +1,4 @@
-import { KEY } from '../share/const.ts'
+import { KEY } from '../share/const'
 
 export const pageKey = (pid: string) => `${KEY.pages}${pid}`
 

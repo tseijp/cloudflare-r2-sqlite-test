@@ -1,5 +1,5 @@
 import type * as Y from 'yjs'
-import type { ColType, Edited, Filter, Mark, Op, Order, Queried, Req, Row, Schema, Value } from '../../../utils/share/types.ts'
+import type { ColType, Edited, Filter, Mark, Op, Order, Queried, Req, Row, Schema, Value } from '../../../utils/share/types'
 
 export type Tree = Y.Map<any>
 
