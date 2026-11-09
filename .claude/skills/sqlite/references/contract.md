@@ -64,7 +64,7 @@ R2 の料金は put、list、delete が 1 回ずつの class A、get が 1 回�
 
 ## 5. Req
 
-`{ page, from, to, order?: { col, dir }, filter?: { col, value }, search? }`。
+`{ page, from, to, order?: { col, dir }, filter?: { col, value }, search?, view? }`。`view` は窓の持ち主で、省くと `main` になる。
 
 `from` と `to` は 1 始まりの表示位置である。order、filter、search が無いとき、表示位置は `_id` と同じになる。
 
@@ -75,11 +75,12 @@ R2 の料金は put、list、delete が 1 回ずつの class A、get が 1 回�
 | key            | 値                                                                      | 区分 |
 | -------------- | ----------------------------------------------------------------------- | ---- |
 | `page/<name>`  | `{ name, pos, cols: { name, type, width, pos, hidden, options }[] }`    | 窓外 |
-| `win`          | Req に `rows`(全行数)と `ids`(窓の `_id` を表示順に)を足したもの      | 窓   |
-| `row/<_id>`    | `Y.Array`。値の並びは page の `cols` と同じ                             | 窓   |
+| `win/<view>`   | Req に `rows`(全行数)、`ids`(窓の `_id` を表示順に)、`rev`(確定した変更の版)を足したもの | 窓   |
+| `row/<_id>`    | `Y.Array`。値の並びは page の `cols` と同じ。全 view の `ids` の和集合だけが載る | 窓   |
 | `deco/<_id>`   | `{ s?: { 列名: json }, m?: { 列名: Mark[] } }`                          | 窓   |
 
-tree snapshot は、窓の区分を除いた key だけを新しい doc に写して測る。
+窓は view ごとに最大 8 つで、`move` だけが窓を作る。開いた直後は `win/main` が 1 つある。
+tree snapshot は、窓の区分(`win/`、`row/`、`deco/` で始まる key)を除いた key だけを新しい doc に写して測る。
 
 ## 7. image の中
 

@@ -25,10 +25,10 @@ export const normalize = (type: ColType, value: Value | undefined): Value => {
         if (isNumber) return Number(text)
         if (type === 'bool') return _TRUE.test(text) ? 1 : 0
         if (type === 'date' || type === 'datetime') return _date(text, type === 'date')
-        return value as Value
+        return typeof value === 'number' || typeof value === 'string' ? value : JSON.stringify(value)
 }
 
 export const clamp = (marks: Mark[], value: Value) => {
         const length = value === null ? 0 : String(value).length
-        return marks.map((m) => ({ from: Math.max(0, m.from), to: Math.min(length, m.to), attr: m.attr, val: m.val })).filter((m) => m.from < m.to)
+        return marks.map((m) => ({ from: Math.max(0, Number(m.from)), to: Math.min(length, Number(m.to)), attr: String(m.attr), val: String(m.val) })).filter((m) => m.from < m.to)
 }

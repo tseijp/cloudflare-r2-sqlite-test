@@ -1,7 +1,7 @@
 import type * as Y from 'yjs'
 import type { Field, Line, Page, Ui, Win } from '../procedural/share/types'
 
-export const createStore = (doc: Y.Doc) => {
+export const createStore = (doc: Y.Doc, view: string) => {
         const _tree = doc.getMap<any>('grid')
         const _listeners = new Set<() => void>()
         let _version = 0
@@ -10,7 +10,7 @@ export const createStore = (doc: Y.Doc) => {
                 _version += 1
                 for (const fn of _listeners) fn()
         }
-        const win = (): Win | null => _tree.get('win') ?? null
+        const win = (): Win | null => _tree.get(`win/${view}`) ?? _tree.get('win/main') ?? null
         const lines = (): Line[] => {
                 const current = win()
                 const isView = !!(current?.order || current?.filter || current?.search)

@@ -64,7 +64,9 @@ export const addColumn = (db: any, page: string, col: ColDecl) => db.run(sql`ALT
 export const renameColumn = (db: any, page: string, from: string, to: string) => db.run(sql`ALTER TABLE ${sql.identifier(page)} RENAME COLUMN ${sql.identifier(from)} TO ${sql.identifier(to)}`)
 
 export const dropTombs = async (db: any) => {
-        for (const [page, name] of await db.values(_TOMBS)) await db.run(sql`ALTER TABLE ${sql.identifier(String(page))} DROP COLUMN ${sql.identifier(String(name))}`)
+        const tombs: Value[][] = await db.values(_TOMBS)
+        for (const [page, name] of tombs) await db.run(sql`ALTER TABLE ${sql.identifier(String(page))} DROP COLUMN ${sql.identifier(String(name))}`)
+        return tombs.length
 }
 
 export const readLayout = async (db: any): Promise<Page[]> => {

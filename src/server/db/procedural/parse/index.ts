@@ -46,7 +46,7 @@ export const parseOp = (op: Op, pages: Page[]): Op | null => {
         const typeOf = (name: string) => page?.cols.find((c) => c.name === name)?.type
         if (!page) return null
         if (op.kind === 'cells') return { ...op, cells: op.cells.filter((c) => typeOf(c.col)).map((c) => _parseCell(c, typeOf(c.col)!)) }
-        if (op.kind === 'style') return { ...op, cells: op.cells.filter((c) => typeOf(c.col)) }
+        if (op.kind === 'style') return { ...op, cells: op.cells.filter((c) => typeOf(c.col)).map((c) => ({ ...c, json: c.json === null || typeof c.json === 'string' ? c.json : JSON.stringify(c.json) })) }
         if (op.kind === 'row.add') return { ...op, values: Object.fromEntries(page.cols.filter((c) => op.values && c.name in op.values).map((c) => [c.name, normalize(c.type, op.values![c.name])])) }
         if (op.kind === 'col.add') return { ...op, name: _colName(op.name, page), type: op.type ?? 'text', default: normalize(op.type ?? 'text', op.default) }
         if (op.kind === 'col.set' && op.to !== undefined && op.to !== op.name) return { ...op, to: _colName(op.to, page) }

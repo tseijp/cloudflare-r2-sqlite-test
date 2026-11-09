@@ -210,12 +210,18 @@ importers:
       '@material-symbols/svg-400':
         specifier: ^0.45.5
         version: 0.45.5
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@cloudflare/workers-types@4.20260702.1)
       hono:
         specifier: ^4.12.27
         version: 4.12.27
       lib0:
         specifier: ^0.2.119
         version: 0.2.119
+      partyserver:
+        specifier: ^0.5.8
+        version: 0.5.8(@cloudflare/workers-types@4.20260702.1)
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -265,12 +271,6 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@cloudflare/workers-types@4.20260702.1)
-      partyserver:
-        specifier: ^0.5.8
-        version: 0.5.8(@cloudflare/workers-types@4.20260702.1)
       partysocket:
         specifier: ^1.3.0
         version: 1.3.0(react@19.2.7)

@@ -40,6 +40,7 @@ export interface Req {
         order?: Order
         filter?: { col: string; value: Value }
         search?: string
+        view?: string
 }
 
 export interface Win extends Req {

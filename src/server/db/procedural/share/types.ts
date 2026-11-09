@@ -82,11 +82,13 @@ export interface Req extends View {
         page: string
         from: number
         to: number
+        view?: string
 }
 
 export interface Win extends Req {
         rows: number
         ids: number[]
+        seq?: number
 }
 
 export interface Deco {
@@ -147,7 +149,7 @@ export interface Storage {
         delete(keys: string[]): Promise<void>
 }
 
-export type Load = (pgnos: number[] | null, has: (pgno: number) => boolean) => Promise<[number, Uint8Array][]>
+export type Load = (pgnos: number[] | null, has: (pgno: number) => boolean, ahead: number) => Promise<[number, Uint8Array][]>
 
 export interface Source {
         pageSize: number

@@ -31,6 +31,9 @@ export const createTable = async (engine: Engine, config: { sample: number; chun
                 await _sync(ctx)
         })
         return {
+                version() {
+                        return engine.version()
+                },
                 pages() {
                         return _pages
                 },

@@ -5,7 +5,8 @@ import type { Dirty, File, Load, Q } from '../procedural/share/types'
 
 interface _Config {
         pageSize: number
-        tries: number
+        ahead: number
+        widest: number
         commit: number
         load?: Load
         wasm?: WebAssembly.Module
@@ -25,22 +26,24 @@ export const createEngine = async (config: _Config) => {
         const _main = pagedFile(config.pageSize, config.commit)
         let _off = 0
         let _commit = config.commit
+        let _version = 0
         let _dirty = new Map<number, Uint8Array>()
         let _tail: Promise<unknown> = Promise.resolve()
         const _wal = flatFile(() => void (_off = 0))
-        const _fill = async (pgnos: number[] | null) => {
-                const got = await config.load!(pgnos, (pgno) => _main.pages.has(pgno))
+        const _fill = async (pgnos: number[] | null, ahead: number) => {
+                const got = await config.load!(pgnos, (pgno) => _main.pages.has(pgno), ahead)
                 for (const [pgno, data] of got) if (!_main.pages.has(pgno)) _main.pages.set(pgno, data)
         }
         _files.set(_name, _main)
         _files.set(`${_name}-wal`, _wal)
-        if (config.load && config.commit) await _fill([1])
+        if (config.load && config.commit) await _fill([1], config.ahead)
         const _db = await _sqlite3.open_v2(_name, 6, 'grid')
         const _q: Q = (text, params, limit) => stepSql(_sqlite3, _db, text, params, limit)
         const _capture = () => {
                 const scanned = scanWal(_wal, config.pageSize, _off)
                 for (const [pgno, data] of scanned.frames) _dirty.set(pgno, data)
                 _commit = scanned.commit || _commit
+                _version += scanned.commit ? 1 : 0
                 _off = scanned.end
         }
         const _atomic = async <T,>(fn: (q: Q) => Promise<T>) => {
@@ -55,7 +58,7 @@ export const createEngine = async (config: _Config) => {
                 const misses = [..._main.miss]
                 _main.miss.clear()
                 const isRetry = misses.length > 0 && !!config.load
-                if (isRetry) return _fill(tries < config.tries ? misses : null).then(() => _attempt(fn, isWrite, tries + 1))
+                if (isRetry) return _fill(misses, Math.min(config.widest, config.ahead * 2 ** tries)).then(() => _attempt(fn, isWrite, tries + 1))
                 _capture()
                 return 'error' in settled ? Promise.reject(settled.error) : settled.value
         }
@@ -70,6 +73,9 @@ export const createEngine = async (config: _Config) => {
         return {
                 run,
                 pageSize: config.pageSize,
+                version() {
+                        return _version
+                },
                 take(): Dirty {
                         const pages = [..._dirty].filter(([pgno]) => pgno <= _commit).sort((a, b) => a[0] - b[0])
                         _dirty = new Map()
@@ -77,7 +83,7 @@ export const createEngine = async (config: _Config) => {
                 },
                 bytes(isTake = false) {
                         return run(async (q) => {
-                                if (config.load) await _fill(null)
+                                if (config.load) await _fill(null, 0)
                                 await q('PRAGMA wal_checkpoint(TRUNCATE)')
                                 const out = new Uint8Array(_main.size)
                                 for (const [pgno, page] of _main.pages) if (pgno * config.pageSize <= _main.size) out.set(page, (pgno - 1) * config.pageSize)

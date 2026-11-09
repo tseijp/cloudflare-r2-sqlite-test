@@ -2,14 +2,14 @@ import type { Pack, Slot } from '../share/types'
 
 const _MAGIC = 0x47524431
 
-const _KEY = /([0-9a-f]{12})\.(full|diff)$/
+const _KEY = /^([0-9a-f]{12})\.(full|diff)$/
 
 export const FOOTER = 16
 
 export const keyOf = (prefix: string, txid: number, isFull: boolean) => `${prefix}${txid.toString(16).padStart(12, '0')}.${isFull ? 'full' : 'diff'}`
 
 export const parseKey = (prefix: string, key: string, size: number): Pack | null => {
-        const m = key.slice(prefix.length).match(_KEY)
+        const m = key.startsWith(prefix) ? key.slice(prefix.length).match(_KEY) : null
         if (!m) return null
         return { key, size, txid: parseInt(m[1], 16), isFull: m[2] === 'full' }
 }

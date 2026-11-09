@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { Bar, Editor, Frame, Head, Lines, Ruler } from './cells'
 import { CSS, SQ, SQUARES } from './const'
 import { createGesture } from './gesture'
+import { createQueue } from './queue'
 import { createStore } from './store'
 import { offsets } from '../procedural/paint/index'
 import type * as Y from 'yjs'
@@ -10,8 +11,9 @@ import type { Send } from '../procedural/share/types'
 export type * from '../procedural/share/types'
 
 export const createGrid = (doc: Y.Doc, send: Send) => {
-        const _store = createStore(doc)
-        const _gesture = createGesture(_store, send)
+        const _view = String(doc.clientID)
+        const _store = createStore(doc, _view)
+        const _gesture = createGesture(_store, createQueue(send, _view))
         const Grid = () => {
                 useSyncExternalStore(_store.subscribe, _store.version, _store.version)
                 const win = _store.win()

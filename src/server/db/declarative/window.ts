@@ -1,27 +1,40 @@
-import { patchPages, patchShown } from '../procedural/view/index'
+import { evictViews, patchPages, patchView, pruneRows, viewsOf } from '../procedural/view/index'
 import type * as Y from 'yjs'
 import type { Table } from './table'
-import type { Op, Req, Sheet, Value } from '../procedural/share/types'
+import type { Op, Req, Sheet, Shown, Value } from '../procedural/share/types'
 
-export const createWindow = async (doc: Y.Doc, table: Table, config: { size: number; max: number; limit: number }) => {
+const _MAIN = 'main'
+
+const _ORIGINS = ['win', 'act']
+
+export const createWindow = async (doc: Y.Doc, table: Table, config: { size: number; max: number; limit: number; views: number }) => {
         const _tree = doc.getMap<any>('grid')
         const _undo: Op[][] = []
         const _redo: Op[][] = []
-        const _show = async (req: Req | null, origin: string) => {
-                const shown = req && (await table.window(req))
-                doc.transact(() => {
-                        patchPages(_tree, table.pages())
-                        patchShown(_tree, shown)
-                }, origin)
-        }
-        const _current = (): Req | null => {
-                const win = _tree.get('win')
+        let _seq = 0
+        let _healing: Promise<void> | null = null
+        const _reqOf = (view: string): Req | null => {
+                const win = _tree.get(`win/${view}`)
                 const pages = table.pages()
                 const isOpen = !!win && pages.some((page) => page.name === win.page)
                 if (isOpen) return { page: win.page, from: win.from, to: win.to, order: win.order, filter: win.filter, search: win.search }
                 return pages[0] ? { page: pages[0].name, from: 1, to: config.size } : null
         }
-        const _refresh = () => _show(_current(), 'act')
+        const _show = async (reqs: [string, Req | null][], origin: string) => {
+                const shown: [string, Shown | null][] = []
+                for (const [view, req] of reqs) shown.push([view, req && (await table.window(req))])
+                doc.transact(() => {
+                        patchPages(_tree, table.pages())
+                        if (_tree.get('rev') !== table.version()) _tree.set('rev', table.version())
+                        for (const [view, one] of shown) patchView(_tree, view, one, { seq: _tree.get(`win/${view}`)?.seq ?? ++_seq })
+                        evictViews(_tree, config.views)
+                        pruneRows(_tree)
+                }, origin)
+        }
+        const _refresh = () => {
+                const views = viewsOf(_tree)
+                return _show((views.length ? views : [_MAIN]).map((view) => [view, _reqOf(view)]), 'act')
+        }
         const _flip = async (from: Op[][], to: Op[][]) => {
                 const ops = from.pop()
                 if (!ops) return
@@ -29,10 +42,26 @@ export const createWindow = async (doc: Y.Doc, table: Table, config: { size: num
                 to.push(done.undo)
                 await _refresh()
         }
-        await _show(_current(), 'win')
+        const _heal = (event: Y.YMapEvent<any>) => {
+                const isForeign = !_ORIGINS.includes(event.transaction.origin)
+                if (isForeign) _healing ??= Promise.resolve().then(() => {
+                        _healing = null
+                        return _refresh()
+                })
+        }
+        await _show([[_MAIN, _reqOf(_MAIN)]], 'win')
+        _tree.observe(_heal)
         return {
-                move(req: Req) {
-                        return _show({ ...req, to: Math.min(req.to, Math.max(1, req.from) + config.max - 1) }, 'win')
+                async move(req: Req) {
+                        const view = req.view ?? _MAIN
+                        const to = Math.min(req.to, Math.max(1, req.from) + config.max - 1)
+                        const shown = await table.window({ ...req, to })
+                        doc.transact(() => {
+                                _tree.delete(`win/${view}`)
+                                patchView(_tree, view, shown, { seq: ++_seq })
+                                evictViews(_tree, config.views)
+                                pruneRows(_tree)
+                        }, 'win')
                 },
                 async act(op: Op) {
                         const done = await table.apply([op])
@@ -59,6 +88,13 @@ export const createWindow = async (doc: Y.Doc, table: Table, config: { size: num
                 },
                 dump() {
                         return _tree.toJSON()
+                },
+                refresh() {
+                        return _refresh()
+                },
+                forget() {
+                        _undo.length = 0
+                        _redo.length = 0
                 },
         }
 }
