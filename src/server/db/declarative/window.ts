@@ -31,26 +31,34 @@ export const createWindow = async (doc: Y.Doc, table: Table, config: { size: num
         }
         await _show(_current(), 'win')
         return {
-                move: (req: Req) => _show({ ...req, to: Math.min(req.to, Math.max(1, req.from) + config.max - 1) }, 'win'),
-                act: async (op: Op) => {
+                move(req: Req) {
+                        return _show({ ...req, to: Math.min(req.to, Math.max(1, req.from) + config.max - 1) }, 'win')
+                },
+                async act(op: Op) {
                         const done = await table.apply([op])
                         if (done.undo.length) _undo.push(done.undo)
                         if (done.undo.length) _redo.length = 0
                         await _refresh()
                         return { id: done.id ?? null }
                 },
-                undo: () => _flip(_undo, _redo),
-                redo: () => _flip(_redo, _undo),
-                load: async (sheets: Sheet[]) => {
+                undo() {
+                        return _flip(_undo, _redo)
+                },
+                redo() {
+                        return _flip(_redo, _undo)
+                },
+                async load(sheets: Sheet[]) {
                         const names = await table.load(sheets)
                         await _refresh()
                         return names
                 },
-                sql: async (text: string, params?: Value[]) => {
+                async sql(text: string, params?: Value[]) {
                         const result = await table.sql(text, params, config.limit)
                         await _refresh()
                         return result
                 },
-                dump: () => _tree.toJSON(),
+                dump() {
+                        return _tree.toJSON()
+                },
         }
 }

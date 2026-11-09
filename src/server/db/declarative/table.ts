@@ -31,9 +31,11 @@ export const createTable = async (engine: Engine, config: { sample: number; chun
                 await _sync(ctx)
         })
         return {
-                pages: () => _pages,
-                apply: (ops: Op[]) =>
-                        _write(async (ctx) => {
+                pages() {
+                        return _pages
+                },
+                apply(ops: Op[]) {
+                        return _write(async (ctx) => {
                                 let undo: Op[] = []
                                 let id: Value | undefined
                                 for (const op of ops) {
@@ -45,20 +47,28 @@ export const createTable = async (engine: Engine, config: { sample: number; chun
                                         if (done.isLayout) await _sync(ctx)
                                 }
                                 return { undo, id }
-                        }),
-                load: (sheets: Sheet[]) =>
-                        _write(async (ctx) => {
+                        })
+                },
+                load(sheets: Sheet[]) {
+                        return _write(async (ctx) => {
                                 const names: string[] = []
                                 for (const sheet of sheets) {
                                         names.push(await loadSheet(ctx, parseSheet(sheet, ctx.pages, config.sample), config.chunk))
                                         await _sync(ctx)
                                 }
                                 return names
-                        }),
-                window: (req: Req) => _read((ctx) => readWindow(ctx, req)),
-                schema: () => _read(readSchema),
-                drop: () => _write(async (ctx) => dropTombs(ctx.db)),
-                sql: async (text: string, params: Value[] | undefined, limit: number) => {
+                        })
+                },
+                window(req: Req) {
+                        return _read((ctx) => readWindow(ctx, req))
+                },
+                schema() {
+                        return _read(readSchema)
+                },
+                drop() {
+                        return _write(async (ctx) => dropTombs(ctx.db))
+                },
+                async sql(text: string, params: Value[] | undefined, limit: number) {
                         const result = await engine.run((q) => q(text, params, limit))
                         await _read(_sync)
                         return result

@@ -70,21 +70,22 @@ export const createEngine = async (config: _Config) => {
         return {
                 run,
                 pageSize: config.pageSize,
-                take: (): Dirty => {
+                take(): Dirty {
                         const pages = [..._dirty].filter(([pgno]) => pgno <= _commit).sort((a, b) => a[0] - b[0])
                         _dirty = new Map()
                         return { pageSize: config.pageSize, commit: _commit, pages }
                 },
-                bytes: (isTake = false) =>
-                        run(async (q) => {
+                bytes(isTake = false) {
+                        return run(async (q) => {
                                 if (config.load) await _fill(null)
                                 await q('PRAGMA wal_checkpoint(TRUNCATE)')
                                 const out = new Uint8Array(_main.size)
                                 for (const [pgno, page] of _main.pages) if (pgno * config.pageSize <= _main.size) out.set(page, (pgno - 1) * config.pageSize)
                                 if (isTake) _dirty = new Map()
                                 return out
-                        }),
-                close: () => {
+                        })
+                },
+                close() {
                         _sqlite3.close(_db)
                         _files.delete(_name)
                         _files.delete(`${_name}-wal`)

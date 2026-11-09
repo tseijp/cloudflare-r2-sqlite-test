@@ -21,23 +21,31 @@ export const createStore = (doc: Y.Doc) => {
         return {
                 win,
                 lines,
-                ui: () => _ui,
-                version: () => _version,
-                set: (patch: Partial<Ui>) => {
+                ui() {
+                        return _ui
+                },
+                version() {
+                        return _version
+                },
+                set(patch: Partial<Ui>) {
                         _ui = { ..._ui, ...patch }
                         _notify()
                 },
-                subscribe: (fn: () => void) => {
+                subscribe(fn: () => void) {
                         _listeners.add(fn)
                         return () => void _listeners.delete(fn)
                 },
-                pages: (): Page[] => [..._tree.entries()].filter(([key]) => key.startsWith('page/')).map(([, page]) => page as Page).sort((a, b) => a.pos - b.pos),
-                fields: (): Field[] => {
+                pages(): Page[] {
+                        return [..._tree.entries()].filter(([key]) => key.startsWith('page/')).map(([, page]) => page as Page).sort((a, b) => a.pos - b.pos)
+                },
+                fields(): Field[] {
                         const page: Page | undefined = _tree.get(`page/${win()?.page}`)
                         const fields = (page?.cols ?? []).map((col, at) => ({ ...col, at })).filter((col) => !col.hidden)
                         return fields.map((field, i) => (_ui.drag?.col === i ? { ...field, width: _ui.drag.width } : field))
                 },
-                lineAt: (pos: number) => lines().find((line) => line.pos === pos),
+                lineAt(pos: number) {
+                        return lines().find((line) => line.pos === pos)
+                },
         }
 }
 

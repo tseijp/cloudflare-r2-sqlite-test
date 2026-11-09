@@ -18,11 +18,17 @@ export const openDb = async (input: Input = {}) => {
         return {
                 ...window,
                 schema: table.schema,
-                save: async () => (replica ? replica.save(engine.take(), image) : null),
-                bytes: () => engine.bytes(false),
+                async save() {
+                        return (replica ? replica.save(engine.take(), image) : null)
+                },
+                bytes() {
+                        return engine.bytes(false)
+                },
                 close: engine.close,
                 pageSize: engine.pageSize,
-                txid: () => replica?.txid ?? 0,
+                txid() {
+                        return replica?.txid ?? 0
+                },
         }
 }
 

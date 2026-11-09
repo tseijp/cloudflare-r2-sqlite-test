@@ -43,7 +43,7 @@ export const createReplica = (storage: Storage, config: _Config) => {
                 return !isBased || diffs.length >= config.diffs || sent > dirty.commit * dirty.pageSize * config.ratio
         }
         return {
-                open: async (): Promise<Source | null> => {
+                async open(): Promise<Source | null> {
                         const listed = await storage.list(config.prefix)
                         _packs = listed.flatMap((o) => parseKey(config.prefix, o.key, o.size) ?? []).sort((a, b) => a.txid - b.txid)
                         _txid = _packs.at(-1)?.txid ?? 0
@@ -55,7 +55,7 @@ export const createReplica = (storage: Storage, config: _Config) => {
                         const { pageSize, commit } = indexes.at(-1)!
                         return { pageSize, commit, load: (pgnos, has) => _fetch(slots, pageSize, commit, pgnos, has) }
                 },
-                save: async (dirty: Dirty, image: () => Promise<Uint8Array>) => {
+                async save(dirty: Dirty, image: () => Promise<Uint8Array>) {
                         if (!dirty.pages.length) return null
                         if (!_isRollup(dirty)) return _put(encodePack(dirty.pages, dirty.pageSize, dirty.commit), false)
                         const bytes = await image()

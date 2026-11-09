@@ -101,19 +101,19 @@ export const createGesture = (store: Store, send: Send) => {
                 async () => {
                         const event = _drop.event as DragEvent
                         const files = _drop.isDropEnd && event.type === 'drop' ? [...(event.dataTransfer?.files ?? [])] : []
-                        const sheets = await Promise.all(files.map(async (file) => ({ name: file.name.replace(/\.[^.]+$/, ''), rows: parseCsv((await file.text()).replace(/^﻿/, '')) })))
+                        const sheets = await Promise.all(files.map(async (file) => ({ name: file.name.replace(/\.[^.]+$/, ''), rows: parseCsv((await file.text()).replace(/^\uFEFF/, '')) })))
                         if (sheets.length) send.load(sheets)
                 },
                 (e) => !!e.dataTransfer?.types.includes('Files'),
         )
         return {
-                ref: (el: HTMLElement | null) => {
+                ref(el: HTMLElement | null) {
                         _sheet = el
                         _select.ref(el)
                         _resize.ref(el)
                         _drop.ref(el)
                 },
-                onKeyDown: (e: React.KeyboardEvent) => {
+                onKeyDown(e: React.KeyboardEvent) {
                         const sel = store.ui().sel
                         const key = e.key.toLowerCase()
                         const isMod = e.metaKey || e.ctrlKey
@@ -135,11 +135,11 @@ export const createGesture = (store: Store, send: Send) => {
                         if (e.key === ' ') return act(_toggle)
                         if (isTyped) return act(() => _start(sel.row2, sel.col2, e.key))
                 },
-                onDoubleClick: (e: React.MouseEvent) => {
+                onDoubleClick(e: React.MouseEvent) {
                         const hit = _hitOf(e.target)
                         if (hit) _start(hit.row, hit.col)
                 },
-                onScroll: (e: React.UIEvent<HTMLElement>) => {
+                onScroll(e: React.UIEvent<HTMLElement>) {
                         const el = e.currentTarget
                         const win = store.win()
                         const top = Math.max(1, Math.floor(el.scrollTop / SQ))
@@ -150,13 +150,13 @@ export const createGesture = (store: Store, send: Send) => {
                         _moved = `${win.page}:${from}`
                         send.move({ page: win.page, from, to: from + WINDOW - 1, order: win.order, filter: win.filter, search: win.search })
                 },
-                sort: (col: number) => {
+                sort(col: number) {
                         const win = store.win()
                         const field = store.fields()[col]
                         if (win && field) _open(win.page, { order: nextOrder(win.order, field.name), search: win.search })
                 },
                 editor: {
-                        onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                        onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
                                 const isEnter = e.key === 'Enter' && !e.nativeEvent.isComposing
                                 const isDone = isEnter || e.key === 'Tab'
                                 if (e.key === 'Escape') store.set({ edit: null })
@@ -167,32 +167,47 @@ export const createGesture = (store: Store, send: Send) => {
                                 _step(isEnter ? [1, 0] : [0, 1], false)
                                 _sheet?.focus()
                         },
-                        onBlur: (e: React.FocusEvent<HTMLInputElement>) => _commit(e.currentTarget.value),
+                        onBlur(e: React.FocusEvent<HTMLInputElement>) {
+                                return _commit(e.currentTarget.value)
+                        },
                 },
                 bar: {
-                        open: (page: string) => _open(page),
-                        search: (text: string) => _open(_page(), { order: store.win()?.order, search: text || undefined }),
-                        addPage: async () => {
+                        open(page: string) {
+                                return _open(page)
+                        },
+                        search(text: string) {
+                                return _open(_page(), { order: store.win()?.order, search: text || undefined })
+                        },
+                        async addPage() {
                                 const done = await send.act({ kind: 'page.add', name: `シート${store.pages().length + 1}` })
                                 if (done?.id) _open(String(done.id))
                         },
-                        addRow: async () => {
+                        async addRow() {
                                 const done = await send.act({ kind: 'row.add', page: _page() })
                                 const win = store.win()
                                 const isOutside = !!win && done?.id > win.to
                                 if (isOutside) await send.move({ page: win.page, from: Math.max(1, done.id - WINDOW + AHEAD), to: done.id + AHEAD })
                                 if (done?.id) _place(done.id, 0, false)
                         },
-                        fill: () => _each('style', ({ line, field }) => ({ row: line.id, col: field.name, json: line.deco?.s?.[field.name] ? null : JSON.stringify({ fill: FILL }) })),
-                        bold: () =>
-                                _each('cells', ({ line, field }) => {
+                        fill() {
+                                return _each('style', ({ line, field }) => ({ row: line.id, col: field.name, json: line.deco?.s?.[field.name] ? null : JSON.stringify({ fill: FILL }) }))
+                        },
+                        bold() {
+                                return _each('cells', ({ line, field }) => {
                                         const text = format(line.values[field.at], field.type)
                                         const isBold = !!line.deco?.m?.[field.name]?.some((m) => m.attr === 'bold')
                                         return { row: line.id, col: field.name, marks: isBold ? [] : [{ from: 0, to: text.length, attr: 'bold', val: '1' }] }
-                                }),
-                        addCol: () => send.act({ kind: 'col.add', page: _page(), name: `列${store.fields().length + 1}`, type: 'text' }),
-                        undo: () => send.undo(),
-                        redo: () => send.redo(),
+                                })
+                        },
+                        addCol() {
+                                return send.act({ kind: 'col.add', page: _page(), name: `列${store.fields().length + 1}`, type: 'text' })
+                        },
+                        undo() {
+                                return send.undo()
+                        },
+                        redo() {
+                                return send.redo()
+                        },
                 },
         }
 }
