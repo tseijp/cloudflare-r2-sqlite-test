@@ -68,10 +68,6 @@ export const dropEvent = <El extends Element = Element>(onDrop?: () => void, can
                 self.depth = 0
                 self.active = false
         }
-        const ref = (el: El) => {
-                if (el) return void self.mount(el)
-                self.clean()
-        }
         const self = {
                 _active: false,
                 active: false,
@@ -90,7 +86,10 @@ export const dropEvent = <El extends Element = Element>(onDrop?: () => void, can
                 dropEnd,
                 mount,
                 clean,
-                ref,
+                ref: (el: El) => {
+                        if (el) return void self.mount(el)
+                        self.clean()
+                },
         } as any
         return self
 }

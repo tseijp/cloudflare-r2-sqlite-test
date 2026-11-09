@@ -6,7 +6,7 @@ import { idOf, rowsOf, writeRow } from './row.ts'
 import type { Tree, View } from './utils/share/types.ts'
 import type { Queried, Req } from '../utils/share/types.ts'
 
-const viewOf = (req: Req) => {
+const _viewOf = (req: Req) => {
         const view: View = {}
         if (req.order) view.order = req.order
         if (req.filter) view.filter = req.filter
@@ -23,6 +23,6 @@ export const swap = (tree: Tree, req: Req, res: Queried) => {
         rows.forEach((row) => writeRow(tree, row))
         ids.forEach((id) => putDeco(tree, id, decoOf(id)))
         put(tree, KEY.win, { page: req.page, from: req.from, to: req.to, ids })
-        put(tree, KEY.view, viewOf(req))
+        put(tree, KEY.view, _viewOf(req))
         return ids
 }

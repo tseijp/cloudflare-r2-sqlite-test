@@ -7,5 +7,11 @@ export const createConfig = (options: ReplicaOptions = {}): ReplicaConfig => {
         const intervals = options.intervals ?? LEVEL_INTERVALS
         const retentions = options.retentions ?? LEVEL_RETENTIONS
         const snapshot = options.snapshot ?? SNAPSHOT_INTERVAL
-        return { prefix, nodeId, intervals, retentions, snapshot }
+        return {
+                prefix,
+                nodeId,
+                intervals,
+                retentions,
+                snapshot,
+        }
 }

@@ -7,12 +7,17 @@ import { compressPages, latestPages, splitImage } from './pages.ts'
 import type { Frame } from '../utils/share/types.ts'
 import type { Context, ObjectHeader, Page, Pushed } from './utils/share/types.ts'
 
-const createHeader = (ctx: Context, fields: Pick<ObjectHeader, 'flags' | 'pageSize' | 'commit' | 'minTxid' | 'maxTxid' | 'preApply'>): ObjectHeader => {
-        const wal = { walOffset: 0, walSize: 0, walSalt1: 0, walSalt2: 0 }
-        return { ...fields, ...wal, timestamp: ctx.state.now, nodeId: ctx.config.nodeId }
+const _createHeader = (ctx: Context, fields: Pick<ObjectHeader, 'flags' | 'pageSize' | 'commit' | 'minTxid' | 'maxTxid' | 'preApply'>): ObjectHeader => {
+        const _wal = { walOffset: 0, walSize: 0, walSalt1: 0, walSalt2: 0 }
+        return {
+                ...fields,
+                ..._wal,
+                timestamp: ctx.state.now,
+                nodeId: ctx.config.nodeId,
+        }
 }
 
-const writeObject = async (ctx: Context, level: number, header: ObjectHeader, pages: Page[], postApply: bigint): Promise<Pushed> => {
+const _writeObject = async (ctx: Context, level: number, header: ObjectHeader, pages: Page[], postApply: bigint): Promise<Pushed> => {
         const bytes = encodeObject(header, compressPages(pages), postApply)
         const key = formatKey(ctx.config.prefix, level, header.minTxid, header.maxTxid)
         const put = await ctx.storage.put(key, bytes, { ifNoneMatch: true })
@@ -31,8 +36,8 @@ export const pushFrames = async (ctx: Context, frames: Frame[], txid: number): P
         const sums = state.sums && applySums(state.sums, pages, commit)
         const flags = sums ? 0 : FLAG_NO_CHECKSUM
         const preApply = state.sums ? state.sums.total : 0n
-        const header = createHeader(ctx, { flags, pageSize, commit, minTxid, maxTxid: txid, preApply })
-        const pushed = await writeObject(ctx, 0, header, pages, sums ? sums.total : 0n)
+        const header = _createHeader(ctx, { flags, pageSize, commit, minTxid, maxTxid: txid, preApply })
+        const pushed = await _writeObject(ctx, 0, header, pages, sums ? sums.total : 0n)
         state.last = txid
         state.commit = commit
         state.sums = sums
@@ -46,8 +51,8 @@ export const pushSnapshot = async (ctx: Context, bytes: Uint8Array, txid: number
         if (!bytes.length) return { key: '' }
         const { pageSize, commit, pages } = splitImage(bytes)
         const sums = seedSums(pages)
-        const header = createHeader(ctx, { flags: 0, pageSize, commit, minTxid: 1, maxTxid: txid, preApply: 0n })
-        const { key } = await writeObject(ctx, SNAPSHOT_LEVEL, header, pages, sums.total)
+        const header = _createHeader(ctx, { flags: 0, pageSize, commit, minTxid: 1, maxTxid: txid, preApply: 0n })
+        const { key } = await _writeObject(ctx, SNAPSHOT_LEVEL, header, pages, sums.total)
         state.snapshotAt = state.now
         state.base = Math.max(state.base, txid)
         if (txid < state.last) return { key }

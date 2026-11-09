@@ -1,11 +1,11 @@
 import { addV, cpV, subV, vec2 } from './utils'
 import type { Vec2 } from './utils'
-const isBrowser = typeof window !== 'undefined' && !!window.document && !!window.document.createElement
-const supportsTouchEvents = () => isBrowser && 'ontouchstart' in window
-const isTouchScreen = () => supportsTouchEvents() || (isBrowser && window.navigator.maxTouchPoints > 1)
-const supportsPointerEvents = () => isBrowser && 'onpointerdown' in window
-const supportsPointerLock = () => isBrowser && 'exitPointerLock' in window.document
-const supportsGestureEvents = () => {
+const _isBrowser = typeof window !== 'undefined' && !!window.document && !!window.document.createElement
+const _supportsTouchEvents = () => _isBrowser && 'ontouchstart' in window
+const _isTouchScreen = () => _supportsTouchEvents() || (_isBrowser && window.navigator.maxTouchPoints > 1)
+const _supportsPointerEvents = () => _isBrowser && 'onpointerdown' in window
+const _supportsPointerLock = () => _isBrowser && 'exitPointerLock' in window.document
+const _supportsGestureEvents = () => {
         try {
                 // @ts-ignore eslint-disable-next-line
                 return 'constructor' in GestureEvent
@@ -13,30 +13,30 @@ const supportsGestureEvents = () => {
                 return false
         }
 }
-const SUPPORT: Record<string, boolean> = {
+const _SUPPORT: Record<string, boolean> = {
         // Mac
-        isBrowser, // true
+        isBrowser: _isBrowser, // true
         get gesture() {
-                return SUPPORT._gesture ?? (SUPPORT._gesture = supportsGestureEvents())
+                return _SUPPORT._gesture ?? (_SUPPORT._gesture = _supportsGestureEvents())
         },
         get touch() {
-                return SUPPORT._touch ?? (SUPPORT._touch = supportsTouchEvents())
+                return _SUPPORT._touch ?? (_SUPPORT._touch = _supportsTouchEvents())
         },
         get touchscreen() {
-                return SUPPORT._touchscreen ?? (SUPPORT._touchscreen = isTouchScreen())
+                return _SUPPORT._touchscreen ?? (_SUPPORT._touchscreen = _isTouchScreen())
         },
         get pointer() {
-                return SUPPORT._pointer ?? (SUPPORT._pointer = supportsPointerEvents())
+                return _SUPPORT._pointer ?? (_SUPPORT._pointer = _supportsPointerEvents())
         },
         get pointerLock() {
-                return SUPPORT._pointerLock ?? (SUPPORT._pointerLock = supportsPointerLock())
+                return _SUPPORT._pointerLock ?? (_SUPPORT._pointerLock = _supportsPointerLock())
         },
 }
 export const getDevice = (lock = false) => {
-        const pointerLock = lock && SUPPORT.pointerLock
+        const pointerLock = lock && _SUPPORT.pointerLock
         if (pointerLock) return 'mouse'
-        if (SUPPORT.pointer) return 'pointer'
-        if (SUPPORT.touch) return 'touch'
+        if (_SUPPORT.pointer) return 'pointer'
+        if (_SUPPORT.touch) return 'touch'
         return 'mouse'
 }
 export const getClientVec2 = (e: any, device: unknown, out: Vec2): Vec2 => {
@@ -66,9 +66,9 @@ export const EVENT_FOR_DRAG = {
                 up: 'mousecancel',
         },
 }
-let grabbing: any = null
+let _grabbing: any = null
 export const dragEvent = <El extends Element = Element>(onDrag?: () => void, canStart: (event: Event) => boolean = () => true) => {
-        const initValues = () => {
+        const _initValues = () => {
                 vec2(0, 0, self.value)
                 vec2(0, 0, self._value)
                 vec2(0, 0, self.delta)
@@ -84,15 +84,15 @@ export const dragEvent = <El extends Element = Element>(onDrag?: () => void, can
         }
         const dragStart = (e: Event) => {
                 if (self.active) return
-                if (grabbing && grabbing !== self) return
+                if (_grabbing && _grabbing !== self) return
                 if (!canStart(e)) return
                 e.stopPropagation()
-                grabbing = self
+                _grabbing = self
                 self.pointerId = (e as any).pointerId ?? null
                 self.event = e
                 self._active = false
                 self.active = true
-                initValues()
+                _initValues()
                 getClientVec2(e, self.device, self.value)
                 if (self.target.setPointerCapture && 'pointerId' in e) self.target.setPointerCapture(e.pointerId)
                 self.drag(self)
@@ -113,10 +113,10 @@ export const dragEvent = <El extends Element = Element>(onDrag?: () => void, can
         }
         const dragEnd = (e: Event) => {
                 if (self.active && self.pointerId !== null && (e as any).pointerId !== self.pointerId) return
-                if (grabbing === self) grabbing = null
+                if (_grabbing === self) _grabbing = null
                 self.event = e
                 self.active = false
-                initValues()
+                _initValues()
                 self.pointerId = null
                 if (self.target.releasePointerCapture && 'pointerId' in e) self.target.releasePointerCapture(e.pointerId)
                 self.drag(self)
@@ -137,12 +137,7 @@ export const dragEvent = <El extends Element = Element>(onDrag?: () => void, can
                 target.removeEventListener(move, self.dragging)
                 target.removeEventListener(end, self.dragEnd)
                 target.removeEventListener(up, self.dragEnd)
-                if (grabbing === self) grabbing = null
-        }
-        const ref = (el: El) => {
-                if (el) {
-                        self.mount(el)
-                } else self.clean(null)
+                if (_grabbing === self) _grabbing = null
         }
         const self = {
                 _active: false,
@@ -166,7 +161,11 @@ export const dragEvent = <El extends Element = Element>(onDrag?: () => void, can
                 dragEnd,
                 mount,
                 clean,
-                ref,
+                ref: (el: El) => {
+                        if (el) {
+                                self.mount(el)
+                        } else self.clean(null)
+                },
         } as any
         return self
 }

@@ -10,10 +10,17 @@ import type { Run, Tree, Window } from './utils/share/types.ts'
 export type { Layout, PageDecl, Run, Window } from './utils/share/types.ts'
 
 export const createWindow = (doc: Y.Doc, run: Run): Window => {
-        const tree = doc.getMap(TREE) as Tree
-        const layout = createLayout(doc, tree)
-        const history = createHistory(doc, tree)
-        const range = createMove(doc, tree, run, history.prune)
-        const edit = createEdit({ tree, layout }, run, history, range.refresh)
-        return { move: range.move, act: edit.act, undo: edit.undo, redo: edit.redo, dump: () => dump(tree, layout), layout }
+        const _tree = doc.getMap(TREE) as Tree
+        const layout = createLayout(doc, _tree)
+        const _history = createHistory(doc, _tree)
+        const _range = createMove(doc, _tree, run, _history.prune)
+        const _edit = createEdit({ tree: _tree, layout }, run, _history, _range.refresh)
+        return {
+                move: _range.move,
+                act: _edit.act,
+                undo: _edit.undo,
+                redo: _edit.redo,
+                dump: () => dump(_tree, layout),
+                layout,
+        }
 }

@@ -1,12 +1,12 @@
 import { MOVES } from '../share/config.ts'
 import type { Keys } from './events.ts'
 
-interface Parts {
+interface _Parts {
         gesture: { step(dr: number, dc: number, isExtend: boolean): void; start(text?: string): void; isMine(): boolean }
         commit: { clear(): unknown; toggle(): unknown }
 }
 
-export const createKeyboard = ({ gesture, commit }: Parts) => {
+export const createKeyboard = ({ gesture, commit }: _Parts) => {
         return {
                 onKeyDown: (e: Keys) => {
                         if (gesture.isMine() || e.nativeEvent.isComposing) return

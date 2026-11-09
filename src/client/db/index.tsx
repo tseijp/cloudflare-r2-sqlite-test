@@ -28,30 +28,31 @@ export const createGrid = (doc: Y.Doc, send: Send) => {
         const _pointer = createPointer(_tree, { gesture: _gesture, commit: _commit, resize: _resize })
         const _keyboard = createKeyboard({ gesture: _gesture, commit: _commit })
         const _editor = createEditor({ gesture: _gesture, commit: _commit, focus: () => _sheet.current?.focus() })
-        const boot = createBoot(_tree, send)
-        const Grid = () => {
-                useTree(_store)
-                const paper = readPaper(_tree, _gesture.isMine())
-                const width = paper.squares * SQ
-                return (
-                        <div style={CSS.root}>
-                                <Bar pages={paper.pages} current={paper.page} onOpen={_commit.open} onAddRow={_commit.addRow} onAddCol={_commit.addCol} />
-                                <div ref={_sheet} tabIndex={0} {..._pointer} onKeyDown={_keyboard.onKeyDown} onScroll={_scroll.onScroll} style={CSS.sheet}>
-                                        <div style={{ ...CSS.sticky, width }}>
-                                                <Ruler squares={paper.squares} />
-                                                <div style={CSS.band}>
-                                                        <Header cols={paper.cols} xs={paper.xs} />
-                                                        {paper.field?.isHead && <Editor field={paper.field} row={1} seed={_gesture.seed()} handlers={_editor} />}
+        return {
+                Grid: () => {
+                        useTree(_store)
+                        const paper = readPaper(_tree, _gesture.isMine())
+                        const width = paper.squares * SQ
+                        return (
+                                <div style={CSS.root}>
+                                        <Bar pages={paper.pages} current={paper.page} onOpen={_commit.open} onAddRow={_commit.addRow} onAddCol={_commit.addCol} />
+                                        <div ref={_sheet} tabIndex={0} {..._pointer} onKeyDown={_keyboard.onKeyDown} onScroll={_scroll.onScroll} style={CSS.sheet}>
+                                                <div style={{ ...CSS.sticky, width }}>
+                                                        <Ruler squares={paper.squares} />
+                                                        <div style={CSS.band}>
+                                                                <Header cols={paper.cols} xs={paper.xs} />
+                                                                {paper.field?.isHead && <Editor field={paper.field} row={1} seed={_gesture.seed()} handlers={_editor} />}
+                                                        </div>
+                                                </div>
+                                                <div style={{ ...CSS.paper, width, height: paper.rows * SQ }}>
+                                                        <Lines lines={paper.lines} cols={paper.cols} xs={paper.xs} />
+                                                        {paper.sel && <Selection sel={paper.sel} xs={paper.xs} />}
+                                                        {paper.field && !paper.field.isHead && <Editor field={paper.field} row={paper.field.y} seed={_gesture.seed()} handlers={_editor} />}
                                                 </div>
                                         </div>
-                                        <div style={{ ...CSS.paper, width, height: paper.rows * SQ }}>
-                                                <Lines lines={paper.lines} cols={paper.cols} xs={paper.xs} />
-                                                {paper.sel && <Selection sel={paper.sel} xs={paper.xs} />}
-                                                {paper.field && !paper.field.isHead && <Editor field={paper.field} row={paper.field.y} seed={_gesture.seed()} handlers={_editor} />}
-                                        </div>
                                 </div>
-                        </div>
-                )
+                        )
+                },
+                boot: createBoot(_tree, send),
         }
-        return { Grid, boot }
 }

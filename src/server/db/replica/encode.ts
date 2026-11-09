@@ -3,7 +3,7 @@ import { CRC_SIZE, FRAME_HEADER_SIZE, HEADER_SIZE, INDEX_SIZE_FIELD, MAGIC, PAGE
 import { checksumBytes } from './crc.ts'
 import type { Block, ObjectHeader } from './utils/share/types.ts'
 
-const writeHeader = (b: Uint8Array, h: ObjectHeader) => {
+const _writeHeader = (b: Uint8Array, h: ObjectHeader) => {
         b.set(encodeText(MAGIC), 0)
         writeU32(b, 4, h.flags)
         writeU32(b, 8, h.pageSize)
@@ -19,7 +19,7 @@ const writeHeader = (b: Uint8Array, h: ObjectHeader) => {
         writeU64(b, 72, BigInt(h.nodeId))
 }
 
-const encodeIndex = (blocks: Block[]) => {
+const _encodeIndex = (blocks: Block[]) => {
         const index: number[] = []
         let offset = HEADER_SIZE
         for (const { pgno, block } of blocks) {
@@ -31,7 +31,7 @@ const encodeIndex = (blocks: Block[]) => {
         return { index, end: offset }
 }
 
-const writeBlocks = (b: Uint8Array, blocks: Block[]) => {
+const _writeBlocks = (b: Uint8Array, blocks: Block[]) => {
         let pos = HEADER_SIZE
         for (const { pgno, block } of blocks) {
                 writeU32(b, pos, pgno)
@@ -43,12 +43,12 @@ const writeBlocks = (b: Uint8Array, blocks: Block[]) => {
 }
 
 export const encodeObject = (header: ObjectHeader, blocks: Block[], postApply: bigint) => {
-        const { index, end } = encodeIndex(blocks)
+        const { index, end } = _encodeIndex(blocks)
         const indexStart = end + PAGE_HEADER_SIZE
         const tailStart = indexStart + index.length
         const out = new Uint8Array(tailStart + TAIL_SIZE)
-        writeHeader(out, header)
-        writeBlocks(out, blocks)
+        _writeHeader(out, header)
+        _writeBlocks(out, blocks)
         out.set(index, indexStart)
         writeU64(out, tailStart, BigInt(index.length))
         writeU64(out, tailStart + INDEX_SIZE_FIELD, postApply)

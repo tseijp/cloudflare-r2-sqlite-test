@@ -2,10 +2,10 @@ import { writeU32 } from './utils/bytes/bytes.ts'
 import { CHECKSUM_FLAG, CRC_POLY_HI, PENDING_BYTE } from './utils/share/const.ts'
 import type { Page, Sums } from './utils/share/types.ts'
 
-const tableHi = new Uint32Array(256)
-const tableLo = new Uint32Array(256)
+const _tableHi = new Uint32Array(256)
+const _tableLo = new Uint32Array(256)
 
-const fillTable = () => {
+const _fillTable = () => {
         for (let i = 0; i < 256; i++) {
                 let hi = 0
                 let lo = i
@@ -15,37 +15,38 @@ const fillTable = () => {
                         hi = hi >>> 1
                         if (isOdd) hi = (hi ^ CRC_POLY_HI) >>> 0
                 }
-                tableHi[i] = hi
-                tableLo[i] = lo
+                _tableHi[i] = hi
+                _tableLo[i] = lo
         }
 }
 
-fillTable()
+_fillTable()
 
-const createHasher = () => {
-        let hi = 0xffffffff
-        let lo = 0xffffffff
-        const update = (bytes: Uint8Array) => {
-                for (let i = 0; i < bytes.length; i++) {
-                        const k = (lo ^ bytes[i]) & 0xff
-                        lo = (tableLo[k] ^ ((lo >>> 8) | ((hi & 0xff) << 24))) >>> 0
-                        hi = (tableHi[k] ^ (hi >>> 8)) >>> 0
-                }
+const _createHasher = () => {
+        let _hi = 0xffffffff
+        let _lo = 0xffffffff
+        return {
+                update: (bytes: Uint8Array) => {
+                        for (let i = 0; i < bytes.length; i++) {
+                                const k = (_lo ^ bytes[i]) & 0xff
+                                _lo = (_tableLo[k] ^ ((_lo >>> 8) | ((_hi & 0xff) << 24))) >>> 0
+                                _hi = (_tableHi[k] ^ (_hi >>> 8)) >>> 0
+                        }
+                },
+                sum: () => (BigInt((_hi ^ 0xffffffff) >>> 0) << 32n) | BigInt((_lo ^ 0xffffffff) >>> 0),
         }
-        const sum = () => (BigInt((hi ^ 0xffffffff) >>> 0) << 32n) | BigInt((lo ^ 0xffffffff) >>> 0)
-        return { update, sum }
 }
 
 export const checksumBytes = (bytes: Uint8Array) => {
-        const hasher = createHasher()
+        const hasher = _createHasher()
         hasher.update(bytes)
         return CHECKSUM_FLAG | hasher.sum()
 }
 
 export const lockPgno = (pageSize: number) => Math.floor(PENDING_BYTE / pageSize) + 1
 
-const checksumPage = (pgno: number, data: Uint8Array) => {
-        const hasher = createHasher()
+const _checksumPage = (pgno: number, data: Uint8Array) => {
+        const hasher = _createHasher()
         const head = new Uint8Array(4)
         writeU32(head, 0, pgno)
         hasher.update(head)
@@ -57,7 +58,7 @@ export const seedSums = (pages: Page[]): Sums => {
         const sums = new Map<number, bigint>()
         let total = 0n
         for (const page of pages) {
-                const sum = checksumPage(page.pgno, page.data)
+                const sum = _checksumPage(page.pgno, page.data)
                 sums.set(page.pgno, sum)
                 total ^= sum
         }
@@ -73,7 +74,7 @@ export const applySums = (base: Sums, pages: Page[], commit: number): Sums => {
                 sums.delete(pgno)
         }
         for (const page of pages) {
-                const sum = checksumPage(page.pgno, page.data)
+                const sum = _checksumPage(page.pgno, page.data)
                 total ^= (sums.get(page.pgno) ?? 0n) ^ sum
                 sums.set(page.pgno, sum)
         }

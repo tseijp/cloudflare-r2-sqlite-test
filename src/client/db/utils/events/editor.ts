@@ -2,13 +2,13 @@ import { AFTER } from '../share/config.ts'
 import type { Blurred, Typed } from './events.ts'
 import type { Editing } from '../share/types.ts'
 
-interface Parts {
+interface _Parts {
         gesture: { stop(): void; step(dr: number, dc: number, isExtend: boolean): void; target(): Editing | null }
         commit: { confirm(editing: Editing | null, text: string): unknown }
         focus(): void
 }
 
-export const createEditor = ({ gesture, commit, focus }: Parts) => {
+export const createEditor = ({ gesture, commit, focus }: _Parts) => {
         let _isComposing = false
         const _close = () => {
                 gesture.stop()

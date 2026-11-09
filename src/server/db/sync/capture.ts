@@ -7,11 +7,11 @@ import type { Ctx, Step } from './utils/share/types.ts'
 
 const _stepOf = (apply: Op[], revert: Op[], rows: number[]): Step => ({ apply, revert, rows, item: null })
 
-const captureLayout = () => _stepOf([], [], [])
+const _captureLayout = () => _stepOf([], [], [])
 
-const captureNone = () => null
+const _captureNone = () => null
 
-const CAPTURE: Record<Op['kind'], (ctx: Ctx, op: any) => Step | null> = {
+const _CAPTURE: Record<Op['kind'], (ctx: Ctx, op: any) => Step | null> = {
         cell: ({ tree }: Ctx, op: CellOp) => {
                 const row = readRow(tree, op.row)
                 if (!row) return null
@@ -40,12 +40,12 @@ const CAPTURE: Record<Op['kind'], (ctx: Ctx, op: any) => Step | null> = {
                 return _stepOf([op], [{ ...op, json }], [op.row])
         },
         'col.rename': (_: Ctx, op: ColRenameOp) => _stepOf([op], [{ kind: 'col.rename', page: op.page, from: op.to, to: op.from }], []),
-        'col.add': captureLayout,
-        'col.hide': captureLayout,
-        'row.add': captureNone,
-        'row.remove': captureNone,
+        'col.add': _captureLayout,
+        'col.hide': _captureLayout,
+        'row.add': _captureNone,
+        'row.remove': _captureNone,
 }
 
-export const capture = (ctx: Ctx, op: Op) => CAPTURE[op.kind](ctx, op)
+export const capture = (ctx: Ctx, op: Op) => _CAPTURE[op.kind](ctx, op)
 
 export const isRefresh = (op: Op) => (REFRESH_KINDS as readonly string[]).includes(op.kind)

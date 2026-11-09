@@ -6,8 +6,8 @@ import { format } from './utils/value/value.ts'
 import type { Cell, Editing, Tree, Win } from './utils/share/types.ts'
 
 export const createGesture = (tree: Tree, reveal: (row: number) => void) => {
-        let seed = ''
-        let target: Editing | null = null
+        let _seed = ''
+        let _target: Editing | null = null
         const place = (win: Win, cell: Cell, isExtend: boolean) => {
                 const prev = readSel(tree)
                 const base = isExtend && prev ? prev : cell
@@ -33,16 +33,16 @@ export const createGesture = (tree: Tree, reveal: (row: number) => void) => {
                         const isHead = cell.row === HEAD
                         const id = idAt(win, readView(tree), cell.row)
                         if (!isHead && id === undefined) return
-                        seed = text ?? format(isHead ? col.name : readRow(tree, id)?.[col.name])
-                        target = { page: win.page, row: cell.row, col: cell.col }
-                        writeEditing(tree, target)
+                        _seed = text ?? format(isHead ? col.name : readRow(tree, id)?.[col.name])
+                        _target = { page: win.page, row: cell.row, col: cell.col }
+                        writeEditing(tree, _target)
                 },
                 stop: () => {
-                        target = null
+                        _target = null
                         writeEditing(tree, null)
                 },
-                seed: () => seed,
-                target: () => target,
-                isMine: () => !!target,
+                seed: () => _seed,
+                target: () => _target,
+                isMine: () => !!_target,
         }
 }

@@ -4,14 +4,14 @@ import { loadState } from './state.ts'
 import type { Frame } from '../utils/share/types.ts'
 import type { Compacted, Context, Pushed, Ticked } from './utils/share/types.ts'
 
-interface Ops {
+interface _Ops {
         push(frames: Frame[], txid: number): Promise<Pushed>
         compact(level: number): Promise<Compacted>
 }
 
-const isDue = (now: number, last: number, interval: number) => Math.floor(now / interval) > Math.floor(last / interval)
+const _isDue = (now: number, last: number, interval: number) => Math.floor(now / interval) > Math.floor(last / interval)
 
-const prune = async ({ storage, config, state }: Context) => {
+const _prune = async ({ storage, config, state }: Context) => {
         if (state.base <= state.pruned) return 0
         const base = state.base
         const keys: string[] = []
@@ -28,17 +28,17 @@ const prune = async ({ storage, config, state }: Context) => {
         return keys.length
 }
 
-export const runTick = async (ctx: Context, ops: Ops, now: number, frames: Frame[]): Promise<Ticked> => {
+export const runTick = async (ctx: Context, ops: _Ops, now: number, frames: Frame[]): Promise<Ticked> => {
         ctx.state.now = now
         const state = await loadState(ctx)
         const runs = state.runs ?? COMPACT_LEVELS.map(() => now)
         const txid = frames.reduce((n, frame) => Math.max(n, frame.txid), 0)
         const pushed = frames.length ? (await ops.push(frames, txid)).bytes : 0
         let compacted = 0
-        let deleted = await prune(ctx)
+        let deleted = await _prune(ctx)
         state.runs = runs
         for (const [i, level] of COMPACT_LEVELS.entries()) {
-                if (!isDue(now, runs[i], ctx.config.intervals[level])) continue
+                if (!_isDue(now, runs[i], ctx.config.intervals[level])) continue
                 runs[i] = now
                 const result = await ops.compact(level)
                 compacted += result.merged

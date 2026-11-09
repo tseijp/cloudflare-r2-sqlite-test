@@ -7,7 +7,7 @@ export const pageSizeOf = (data: Uint8Array) => {
         return raw === 1 ? 65536 : raw
 }
 
-const framesOf = (file: File, txid: number): Frame[] => {
+const _framesOf = (file: File, txid: number): Frame[] => {
         const size = pageSizeOf(file.data)
         const pgnos = [...file.dirty].sort((a, b) => a - b)
         const commit = file.size / size
@@ -16,39 +16,42 @@ const framesOf = (file: File, txid: number): Frame[] => {
 }
 
 export const createLog = (sql: Sql, file: File, start: number) => {
-        let txid = start
-        let frames: Frame[] = []
-        let isPending = false
+        let _txid = start
+        let _frames: Frame[] = []
+        let _isPending = false
         const flush = (): Edited => {
-                if (!file.dirty.size || !sql.isIdle()) return { txid, frames: [] }
-                txid += 1
-                const made = framesOf(file, txid)
+                if (!file.dirty.size || !sql.isIdle()) return { txid: _txid, frames: [] }
+                _txid += 1
+                const made = _framesOf(file, _txid)
                 file.dirty.clear()
-                frames = frames.concat(made)
-                return { txid, frames: made }
+                _frames = _frames.concat(made)
+                return { txid: _txid, frames: made }
         }
-        const settle = () => {
-                if (!isPending) return
-                isPending = false
+        const _settle = () => {
+                if (!_isPending) return
+                _isPending = false
                 if (!sql.isIdle()) sql.query('ROLLBACK')
         }
-        const guard = <T>(fn: () => T) => {
-                settle()
-                return fn()
-        }
-        const atomic = (fn: () => unknown) => {
-                settle()
-                isPending = true
-                sql.query('BEGIN IMMEDIATE')
-                fn()
-                sql.query('COMMIT')
-                isPending = false
-                return flush()
-        }
-        const since = (n: number) => frames.filter((frame) => frame.txid > n)
-        const clear = () => void (frames = [])
         flush()
-        return { flush, guard, atomic, since, clear, txid: () => txid }
+        return {
+                flush,
+                guard: <T>(fn: () => T) => {
+                        _settle()
+                        return fn()
+                },
+                atomic: (fn: () => unknown) => {
+                        _settle()
+                        _isPending = true
+                        sql.query('BEGIN IMMEDIATE')
+                        fn()
+                        sql.query('COMMIT')
+                        _isPending = false
+                        return flush()
+                },
+                since: (n: number) => _frames.filter((frame) => frame.txid > n),
+                clear: () => void (_frames = []),
+                txid: () => _txid,
+        }
 }
 
 export type Log = ReturnType<typeof createLog>

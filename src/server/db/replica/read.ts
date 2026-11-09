@@ -3,7 +3,7 @@ import { parseFrame, parseIndex, parseTail } from './decode.ts'
 import type { Storage } from '../utils/share/types.ts'
 import type { ObjectIndex, Page, PageEntry } from './utils/share/types.ts'
 
-interface Range {
+interface _Range {
         offset: number
         length: number
         entries: PageEntry[]
@@ -18,8 +18,8 @@ export const readIndex = async (storage: Storage, key: string): Promise<ObjectIn
         return { ...parsed, entries: parseIndex(body.subarray(0, parsed.indexSize)) }
 }
 
-const coalesce = (entries: PageEntry[]) => {
-        const ranges: Range[] = []
+const _coalesce = (entries: PageEntry[]) => {
+        const ranges: _Range[] = []
         for (const entry of [...entries].sort((a, b) => a.offset - b.offset)) {
                 const last = ranges[ranges.length - 1]
                 const isAdjacent = last && last.offset + last.length === entry.offset
@@ -35,7 +35,7 @@ const coalesce = (entries: PageEntry[]) => {
 
 export const readPages = async (storage: Storage, key: string, entries: PageEntry[], place: (page: Page) => void) => {
         const scratch = new Uint8Array(MAX_PAGE_SIZE)
-        const ranges = coalesce(entries)
+        const ranges = _coalesce(entries)
         const chunks = await Promise.all(ranges.map(({ offset, length }) => storage.get(key, { offset, length })))
         for (const [i, { offset, entries }] of ranges.entries()) {
                 const bytes = chunks[i]

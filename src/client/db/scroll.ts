@@ -5,13 +5,13 @@ import { readView, readWin } from './tree.ts'
 import type { Scrolled } from './utils/events/events.ts'
 import type { Send, Tree } from './utils/share/types.ts'
 
-interface Sheet {
+interface _Sheet {
         scrollTop: number
         clientHeight: number
 }
 
-export const createScroll = (tree: Tree, send: Send, sheet: { current: Sheet | null }) => {
-        let last = ''
+export const createScroll = (tree: Tree, send: Send, sheet: { current: _Sheet | null }) => {
+        let _last = ''
         return {
                 onScroll: (e: Scrolled) => {
                         const el = e.currentTarget
@@ -22,8 +22,8 @@ export const createScroll = (tree: Tree, send: Send, sheet: { current: Sheet | n
                         if (isInside(win, vis.from, vis.to, view)) return
                         const range = around(vis)
                         const key = `${win.page}:${range.from}:${range.to}`
-                        if (key === last) return
-                        last = key
+                        if (key === _last) return
+                        _last = key
                         send.move({ ...view, page: win.page, ...range })
                 },
                 reveal: (row: number) => {

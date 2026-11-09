@@ -3,15 +3,15 @@ import { readSel, readWin } from './tree.ts'
 import type { Pointer, Target } from './utils/events/events.ts'
 import type { Cell, Tree, Win } from './utils/share/types.ts'
 
-type Hit = Cell & { kind: 'cell' | 'head' | 'sort' | 'width' }
+type _Hit = Cell & { kind: 'cell' | 'head' | 'sort' | 'width' }
 
-interface Parts {
+interface _Parts {
         gesture: { place(win: Win, cell: Cell, isExtend: boolean): void; start(text?: string, at?: Cell): void; isMine(): boolean }
         commit: { sort(index: number): unknown }
         resize: { start(index: number, x: number): void; move(x: number): void; end(): void; isDragging(): boolean }
 }
 
-const hitOf = (target: Pointer['target']): Hit | null => {
+const _hitOf = (target: Pointer['target']): _Hit | null => {
         const node = target as Target | null
         const el = node?.closest?.('[data-r]')
         if (!node || !el) return null
@@ -21,10 +21,10 @@ const hitOf = (target: Pointer['target']): Hit | null => {
         return { ...cell, kind: cell.row === HEAD ? 'head' : 'cell' }
 }
 
-export const createPointer = (tree: Tree, { gesture, commit, resize }: Parts) => {
+export const createPointer = (tree: Tree, { gesture, commit, resize }: _Parts) => {
         return {
                 onMouseDown: (e: Pointer) => {
-                        const hit = hitOf(e.target)
+                        const hit = _hitOf(e.target)
                         const win = readWin(tree)
                         if (!hit || !win) return
                         if (hit.kind !== 'cell' && gesture.isMine()) return
@@ -34,7 +34,7 @@ export const createPointer = (tree: Tree, { gesture, commit, resize }: Parts) =>
                         gesture.place(win, hit, e.shiftKey)
                 },
                 onMouseOver: (e: Pointer) => {
-                        const hit = hitOf(e.target)
+                        const hit = _hitOf(e.target)
                         const win = readWin(tree)
                         const isDrag = e.buttons === 1 && !resize.isDragging() && hit?.kind === 'cell' && !!readSel(tree)
                         if (!isDrag || !win || !hit) return

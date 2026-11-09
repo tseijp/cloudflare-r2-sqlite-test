@@ -1,5 +1,5 @@
-const Vec = typeof Float32Array !== 'undefined' ? Float32Array : Array
-export const vec2 = (x = 0, y = 0, out = new Vec(2)): Vec2 => {
+const _Vec = typeof Float32Array !== 'undefined' ? Float32Array : Array
+export const vec2 = (x = 0, y = 0, out = new _Vec(2)): Vec2 => {
         out[0] = x
         out[1] = y
         return out as Vec2

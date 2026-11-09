@@ -5,7 +5,7 @@ import { compress } from './utils/lz4/lz4.ts'
 import type { Frame } from '../utils/share/types.ts'
 import type { Page } from './utils/share/types.ts'
 
-const readPageSize = (image: Uint8Array) => {
+const _readPageSize = (image: Uint8Array) => {
         const raw = readU16(image, DB_PAGE_SIZE_OFFSET)
         if (raw === 1) return MAX_PAGE_SIZE
         return raw
@@ -18,7 +18,7 @@ export const readCommit = (image: Uint8Array, pageSize: number) => {
 }
 
 export const splitImage = (image: Uint8Array) => {
-        const pageSize = readPageSize(image)
+        const pageSize = _readPageSize(image)
         const commit = Math.floor(image.length / pageSize)
         const lock = lockPgno(pageSize)
         const pages: Page[] = []

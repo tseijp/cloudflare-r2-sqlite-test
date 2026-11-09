@@ -11,24 +11,20 @@ import type { Replica, ReplicaOptions } from './utils/share/types.ts'
 export type { Replica, ReplicaOptions, Ticked } from './utils/share/types.ts'
 
 export const createReplica = (storage: Storage, options?: ReplicaOptions): Replica => {
-        const config = createConfig(options)
-        const state = createState()
-        const ctx = { storage, config, state }
-        const push = (frames: Frame[], txid: number) => pushFrames(ctx, frames, txid)
-        const compact = (level: number) => compactLevel(ctx, level)
-        const snapshot = (bytes: Uint8Array, txid: number) => pushSnapshot(ctx, bytes, txid)
-        const restore = (txid?: number) => restoreImage(ctx, txid)
-        const index = async (key: string) => (await readIndex(storage, key)).entries
-        const tick = (now: number, frames: Frame[]) => runTick(ctx, { push, compact }, now, frames)
+        const _config = createConfig(options)
+        const _state = createState()
+        const _ctx = { storage, config: _config, state: _state }
+        const push = (frames: Frame[], txid: number) => pushFrames(_ctx, frames, txid)
+        const compact = (level: number) => compactLevel(_ctx, level)
         return {
                 push,
                 compact,
-                snapshot,
-                restore,
-                index,
-                tick,
+                snapshot: (bytes: Uint8Array, txid: number) => pushSnapshot(_ctx, bytes, txid),
+                restore: (txid?: number) => restoreImage(_ctx, txid),
+                index: async (key: string) => (await readIndex(storage, key)).entries,
+                tick: (now: number, frames: Frame[]) => runTick(_ctx, { push, compact }, now, frames),
                 get txid() {
-                        return state.last
+                        return _state.last
                 },
         }
 }

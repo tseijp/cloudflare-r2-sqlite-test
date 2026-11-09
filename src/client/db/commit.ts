@@ -35,7 +35,6 @@ export const createCommit = (tree: Tree, send: Send) => {
                 const fit = marks && { marks: fitMarks(marks, String(value ?? '').length) }
                 return send.act({ kind: 'cell', page: win.page, row: id, col: col.name, value, ...fit })
         }
-        const open = (pid: string) => send.move({ page: pid, from: 1, to: WINDOW })
         return {
                 confirm: (editing: Editing | null, text: string) => {
                         const win = readWin(tree)
@@ -86,6 +85,6 @@ export const createCommit = (tree: Tree, send: Send) => {
                         const view = readView(tree)
                         return send.move({ ...view, page: win.page, from: 1, to: WINDOW, order: _nextOrder(view.order, col.name) })
                 },
-                open,
+                open: (pid: string) => send.move({ page: pid, from: 1, to: WINDOW }),
         }
 }

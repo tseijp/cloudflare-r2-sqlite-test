@@ -7,27 +7,27 @@ import { createStore } from './store.ts'
 import type { Image } from '../utils/share/types.ts'
 
 export const createImage = async (bytes: Uint8Array | null, txid = 0): Promise<Image> => {
-        const { sql, file, close } = await openEngine(bytes)
-        const log = createLog(sql, file, txid)
-        const cols = createColumns(sql)
-        const write = createEdit(sql, cols, () => log.txid() + 1)
-        const read = createRead(sql, cols)
-        const store = createStore(sql, log, file, cols, write.drop)
+        const { sql: _sql, file: _file, close } = await openEngine(bytes)
+        const _log = createLog(_sql, _file, txid)
+        const _cols = createColumns(_sql)
+        const _write = createEdit(_sql, _cols, () => _log.txid() + 1)
+        const _read = createRead(_sql, _cols)
+        const _store = createStore(_sql, _log, _file, _cols, _write.drop)
         return {
-                sql: store.sql,
-                declare: (sheet) => log.atomic(() => write.declare(sheet)),
-                window: (req) => log.guard(() => read.window(req)),
-                edit: (op) => log.atomic(() => write.edit(op)),
-                frames: log.since,
+                sql: _store.sql,
+                declare: (sheet) => _log.atomic(() => _write.declare(sheet)),
+                window: (req) => _log.guard(() => _read.window(req)),
+                edit: (op) => _log.atomic(() => _write.edit(op)),
+                frames: _log.since,
                 get txid() {
-                        return log.txid()
+                        return _log.txid()
                 },
-                checkpoint: log.clear,
-                bytes: store.bytes,
-                pageSize: pageSizeOf(file.data),
-                orphans: () => log.guard(read.orphans),
-                schema: () => log.guard(read.schema),
-                meta: store.meta,
+                checkpoint: _log.clear,
+                bytes: _store.bytes,
+                pageSize: pageSizeOf(_file.data),
+                orphans: () => _log.guard(_read.orphans),
+                schema: () => _log.guard(_read.schema),
+                meta: _store.meta,
                 close,
         }
 }

@@ -12,7 +12,7 @@ export const AFTER: Record<string, [number, number]> = { Enter: [1, 0], Tab: [0,
 
 export const NEW_COL = { type: 'text', width: 4 } as const
 
-const STYLE = {
+const _STYLE = {
         line: '#e5e7eb',
         head: '#f3f4f6',
         dim: '#9ca3af',
@@ -22,13 +22,13 @@ const STYLE = {
         paper: '#ffffff',
 } as const
 
-const _grid = (side: string) => `linear-gradient(to ${side}, ${STYLE.line} 1px, transparent 1px)`
+const _grid = (side: string) => `linear-gradient(to ${side}, ${_STYLE.line} 1px, transparent 1px)`
 
 export const CSS = {
         root: { display: 'flex', flexDirection: 'column', height: '100%', userSelect: 'none' },
-        bar: { display: 'flex', gap: 8, padding: 6, borderBottom: `1px solid ${STYLE.line}`, fontSize: 13 },
+        bar: { display: 'flex', gap: 8, padding: 6, borderBottom: `1px solid ${_STYLE.line}`, fontSize: 13 },
         sheet: { flex: 1, overflow: 'auto', outline: 'none' },
-        sticky: { position: 'sticky', top: 0, zIndex: 2, background: STYLE.paper },
+        sticky: { position: 'sticky', top: 0, zIndex: 2, background: _STYLE.paper },
         paper: { position: 'relative', backgroundImage: `${_grid('right')}, ${_grid('bottom')}`, backgroundSize: `${SQ}px ${SQ}px` },
         band: { position: 'relative', height: SQ },
         cell: {
@@ -39,15 +39,15 @@ export const CSS = {
                 overflow: 'hidden',
                 whiteSpace: 'nowrap',
                 textOverflow: 'ellipsis',
-                borderRight: `1px solid ${STYLE.line}`,
-                borderBottom: `1px solid ${STYLE.line}`,
+                borderRight: `1px solid ${_STYLE.line}`,
+                borderBottom: `1px solid ${_STYLE.line}`,
                 fontSize: 13,
-                color: STYLE.text,
+                color: _STYLE.text,
         },
-        letter: { padding: 0, textAlign: 'center', color: STYLE.dim },
-        head: { background: STYLE.head, fontWeight: 600 },
-        sort: { position: 'absolute', right: 8, cursor: 'pointer', color: STYLE.dim },
+        letter: { padding: 0, textAlign: 'center', color: _STYLE.dim },
+        head: { background: _STYLE.head, fontWeight: 600 },
+        sort: { position: 'absolute', right: 8, cursor: 'pointer', color: _STYLE.dim },
         handle: { position: 'absolute', right: 0, top: 0, width: 4, height: SQ, cursor: 'col-resize' },
-        frame: { position: 'absolute', background: STYLE.sel, border: `2px solid ${STYLE.edge}`, pointerEvents: 'none', boxSizing: 'border-box' },
-        input: { position: 'absolute', boxSizing: 'border-box', border: `2px solid ${STYLE.edge}`, outline: 'none', padding: '0 4px', fontSize: 13, zIndex: 3 },
+        frame: { position: 'absolute', background: _STYLE.sel, border: `2px solid ${_STYLE.edge}`, pointerEvents: 'none', boxSizing: 'border-box' },
+        input: { position: 'absolute', boxSizing: 'border-box', border: `2px solid ${_STYLE.edge}`, outline: 'none', padding: '0 4px', fontSize: 13, zIndex: 3 },
 } as const

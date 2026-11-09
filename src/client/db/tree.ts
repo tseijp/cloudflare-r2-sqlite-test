@@ -46,15 +46,16 @@ export const writeWidth = (tree: Tree, pid: string, col: Col, width: number) => 
 }
 
 export const createStore = (tree: Tree) => {
-        let tick = 0
-        const subscribe = (notify: () => void) => {
-                const bump = () => {
-                        tick++
-                        notify()
-                }
-                tree.observeDeep(bump)
-                return () => tree.unobserveDeep(bump)
+        let _tick = 0
+        return {
+                subscribe: (notify: () => void) => {
+                        const bump = () => {
+                                _tick++
+                                notify()
+                        }
+                        tree.observeDeep(bump)
+                        return () => tree.unobserveDeep(bump)
+                },
+                get: () => _tick,
         }
-        const get = () => tick
-        return { subscribe, get }
 }
