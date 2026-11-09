@@ -41,7 +41,7 @@ runner は数え役を兼ねた memory 実装を渡す。
 | method                            | 振る舞い                                                                   |
 | --------------------------------- | -------------------------------------------------------------------------- |
 | `put(key, bytes, { ifNoneMatch })` | `{ etag }` を返す。`ifNoneMatch` が真で key が既にあれば書かずに null      |
-| `get(key, range?)`                | range は `{ offset, length }` か `{ suffix }`。無い key は null            |
+| `get(key, range?)`                | `Uint8Array` を返す。range は `{ offset, length }` か `{ suffix }`。無い key は null |
 | `list(prefix)`                    | `{ key, size }[]`                                                          |
 | `delete(keys)`                    | 複数 key を 1 回で消す                                                     |
 
@@ -60,7 +60,8 @@ R2 の料金は put、list、delete が 1 回ずつの class A、get が 1 回�
 | `col.remove` | `{ page, name }`                                                                            |
 | `page.add`   | `{ name, cols? }`                                                                           |
 
-`type` は `text`、`number`、`int`、`bool`、`date`、`datetime`、`json` のどれかである。`marks` は `{ from, to, attr, val }[]` で、本文の文字区間を指す。
+`type` は `text`、`number`、`int`、`bool`、`date`、`datetime`、`json` のどれかである。`col` と `name` は列名、`page` は page 名である。
+`value` は文字列か数値か null で、列の種類に合わせて製品が正規化する。`marks` は `{ from, to, attr, val }[]` で本文の文字区間を指し、`val` は文字列である。style の `json` は JSON 文字列である。`pos` は列の並びの実数で、小さいほど左に来る。
 
 ## 5. Req
 
@@ -75,7 +76,8 @@ R2 の料金は put、list、delete が 1 回ずつの class A、get が 1 回�
 | key            | 値                                                                      | 区分 |
 | -------------- | ----------------------------------------------------------------------- | ---- |
 | `page/<name>`  | `{ name, pos, cols: { name, type, width, pos, hidden, options }[] }`    | 窓外 |
-| `win/<view>`   | Req に `rows`(全行数)、`ids`(窓の `_id` を表示順に)、`rev`(確定した変更の版)を足したもの | 窓   |
+| `rev`          | 確定した変更の版。commit が起きた act / undo / redo / load / sql のたびに増える | 窓外 |
+| `win/<view>`   | Req に `rows`(全行数)と `ids`(窓の `_id` を表示順に)を足したもの      | 窓   |
 | `row/<_id>`    | `Y.Array`。値の並びは page の `cols` と同じ。全 view の `ids` の和集合だけが載る | 窓   |
 | `deco/<_id>`   | `{ s?: { 列名: json }, m?: { 列名: Mark[] } }`                          | 窓   |
 

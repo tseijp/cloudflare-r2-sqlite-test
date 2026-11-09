@@ -19,7 +19,7 @@ runner が製品に触れてよい面は `contract.md` に限る。
 
 ## 2. gate
 
-- 対象 class の fixture を 1 件でも取り込めない
+- 対象 class (fixtures.md の 4 件) の fixture を 1 件でも取り込めない
 - 復元 image が元と整合しない、孤児が 1 件以上ある
 - 窓を満たすために image の 50% 以上の byte を読んだ
 - 台帳の hash が最新の `src/` と一致しない
