@@ -1,6 +1,6 @@
-import { WINDOW } from './utils/const/const.ts'
+import { WINDOW } from './utils/share/const.ts'
 import { readPages, readWin } from './tree.ts'
-import type { Provider, Send, Tree } from './utils/types/types.ts'
+import type { Provider, Send, Tree } from './utils/share/types.ts'
 
 export const createBoot = (tree: Tree, send: Send) => (provider: Provider) => {
         const onSync = (isSynced: boolean) => {

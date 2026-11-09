@@ -1,7 +1,7 @@
-import { CRC_SIZE, FRAME_HEADER_SIZE, HEADER_SIZE, INDEX_SIZE_FIELD, MAGIC, PAGE_FLAG_SIZE, PAGE_HEADER_SIZE, TAIL_SIZE } from './utils/const/const.ts'
 import { encodeText, encodeVarint, writeU16, writeU32, writeU64 } from './utils/bytes/bytes.ts'
+import { CRC_SIZE, FRAME_HEADER_SIZE, HEADER_SIZE, INDEX_SIZE_FIELD, MAGIC, PAGE_FLAG_SIZE, PAGE_HEADER_SIZE, TAIL_SIZE } from './utils/share/const.ts'
 import { checksumBytes } from './crc.ts'
-import type { Block, ObjectHeader } from './utils/types/types.ts'
+import type { Block, ObjectHeader } from './utils/share/types.ts'
 
 const writeHeader = (b: Uint8Array, h: ObjectHeader) => {
         b.set(encodeText(MAGIC), 0)

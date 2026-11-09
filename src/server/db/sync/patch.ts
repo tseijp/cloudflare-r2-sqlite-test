@@ -3,7 +3,7 @@ import { put, uid } from './utils/tree/tree.ts'
 import { decoAt, putDeco, without } from './deco.ts'
 import { inWindow, writeCell } from './row.ts'
 import type { CellOp, ClearOp, ColAddOp, ColHideOp, ColRenameOp, Op, StyleOp } from '../utils/share/types.ts'
-import type { Ctx } from './utils/types/types.ts'
+import type { Ctx } from './utils/share/types.ts'
 
 const patchCell = ({ tree }: Ctx, op: CellOp) => {
         if (!inWindow(tree, [op.row]).length) return

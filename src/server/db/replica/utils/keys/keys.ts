@@ -1,5 +1,5 @@
 import type { Storage } from '../../../utils/share/types.ts'
-import type { ObjectRef } from '../types/types.ts'
+import type { ObjectRef } from '../share/types.ts'
 
 const KEY_PATTERN = /^([0-9a-f]{16})-([0-9a-f]{16})\.ltx$/
 

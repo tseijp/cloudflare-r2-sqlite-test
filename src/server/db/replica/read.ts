@@ -1,7 +1,7 @@
-import { MAX_PAGE_SIZE, TAIL_SIZE } from './utils/const/const.ts'
+import { MAX_PAGE_SIZE, TAIL_SIZE } from './utils/share/const.ts'
 import { parseFrame, parseIndex, parseTail } from './decode.ts'
 import type { Storage } from '../utils/share/types.ts'
-import type { ObjectIndex, Page, PageEntry } from './utils/types/types.ts'
+import type { ObjectIndex, Page, PageEntry } from './utils/share/types.ts'
 
 interface Range {
         offset: number

@@ -1,4 +1,4 @@
-import { SQ } from '../const/const.ts'
+import { SQ } from '../share/const.ts'
 
 export const MOVES: Record<string, [number, number]> = {
         ArrowUp: [-1, 0],
@@ -22,14 +22,14 @@ const STYLE = {
         paper: '#ffffff',
 } as const
 
-const grid = (side: string) => `linear-gradient(to ${side}, ${STYLE.line} 1px, transparent 1px)`
+const _grid = (side: string) => `linear-gradient(to ${side}, ${STYLE.line} 1px, transparent 1px)`
 
 export const CSS = {
         root: { display: 'flex', flexDirection: 'column', height: '100%', userSelect: 'none' },
         bar: { display: 'flex', gap: 8, padding: 6, borderBottom: `1px solid ${STYLE.line}`, fontSize: 13 },
         sheet: { flex: 1, overflow: 'auto', outline: 'none' },
         sticky: { position: 'sticky', top: 0, zIndex: 2, background: STYLE.paper },
-        paper: { position: 'relative', backgroundImage: `${grid('right')}, ${grid('bottom')}`, backgroundSize: `${SQ}px ${SQ}px` },
+        paper: { position: 'relative', backgroundImage: `${_grid('right')}, ${_grid('bottom')}`, backgroundSize: `${SQ}px ${SQ}px` },
         band: { position: 'relative', height: SQ },
         cell: {
                 position: 'absolute',

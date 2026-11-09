@@ -1,4 +1,4 @@
-import { TRUE } from '../const/const.ts'
+import { TRUE } from '../share/const.ts'
 import type { ColType, Value } from '../../../utils/share/types.ts'
 
 const DATE = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/

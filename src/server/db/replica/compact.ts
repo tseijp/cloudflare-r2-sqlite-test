@@ -1,10 +1,10 @@
-import { COMPACT_LEVELS, FLAG_NO_CHECKSUM } from './utils/const/const.ts'
 import { formatKey, listLevel, selectChain } from './utils/keys/keys.ts'
+import { COMPACT_LEVELS, FLAG_NO_CHECKSUM } from './utils/share/const.ts'
 import { parseObject } from './decode.ts'
 import { encodeObject } from './encode.ts'
 import { ageOf, loadState } from './state.ts'
 import type { Storage } from '../utils/share/types.ts'
-import type { Block, Compacted, Context, ObjectHeader, ObjectRef, ParsedObject } from './utils/types/types.ts'
+import type { Block, Compacted, Context, ObjectHeader, ObjectRef, ParsedObject } from './utils/share/types.ts'
 
 const readObjects = async (storage: Storage, refs: ObjectRef[]) => {
         const objects: ParsedObject[] = []

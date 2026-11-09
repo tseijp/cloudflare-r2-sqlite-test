@@ -6,9 +6,9 @@ import { readIndex } from './read.ts'
 import { restoreImage } from './restore.ts'
 import { runTick } from './tick.ts'
 import type { Frame, Storage } from '../utils/share/types.ts'
-import type { Replica, ReplicaOptions } from './utils/types/types.ts'
+import type { Replica, ReplicaOptions } from './utils/share/types.ts'
 
-export type { Replica, ReplicaOptions, Ticked } from './utils/types/types.ts'
+export type { Replica, ReplicaOptions, Ticked } from './utils/share/types.ts'
 
 export const createReplica = (storage: Storage, options?: ReplicaOptions): Replica => {
         const config = createConfig(options)

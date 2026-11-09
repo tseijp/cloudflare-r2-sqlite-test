@@ -1,9 +1,9 @@
-import { DB_CHANGE_COUNTER_OFFSET, DB_PAGE_COUNT_OFFSET, DB_PAGE_SIZE_OFFSET, DB_VERSION_VALID_OFFSET, MAX_PAGE_SIZE } from './utils/const/const.ts'
 import { readU16, readU32 } from './utils/bytes/bytes.ts'
+import { DB_CHANGE_COUNTER_OFFSET, DB_PAGE_COUNT_OFFSET, DB_PAGE_SIZE_OFFSET, DB_VERSION_VALID_OFFSET, MAX_PAGE_SIZE } from './utils/share/const.ts'
 import { lockPgno } from './crc.ts'
 import { compress } from './utils/lz4/lz4.ts'
 import type { Frame } from '../utils/share/types.ts'
-import type { Page } from './utils/types/types.ts'
+import type { Page } from './utils/share/types.ts'
 
 const readPageSize = (image: Uint8Array) => {
         const raw = readU16(image, DB_PAGE_SIZE_OFFSET)

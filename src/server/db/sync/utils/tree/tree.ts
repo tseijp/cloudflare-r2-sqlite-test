@@ -1,4 +1,4 @@
-import type { Tree } from '../types/types.ts'
+import type { Tree } from '../share/types.ts'
 
 export const uid = () => Math.random().toString(36).slice(2, 10)
 

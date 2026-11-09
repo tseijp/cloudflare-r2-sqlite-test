@@ -1,7 +1,7 @@
 import { decoKey } from './utils/keys/keys.ts'
 import { put } from './utils/tree/tree.ts'
 import type { Queried } from '../utils/share/types.ts'
-import type { Deco, Tree } from './utils/types/types.ts'
+import type { Deco, Tree } from './utils/share/types.ts'
 
 const EMPTY: Deco = { styles: {}, marks: {} }
 

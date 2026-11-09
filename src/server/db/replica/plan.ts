@@ -1,6 +1,6 @@
-import { DIFF_LEVELS, SNAPSHOT_LEVEL } from './utils/const/const.ts'
+import { DIFF_LEVELS, SNAPSHOT_LEVEL } from './utils/share/const.ts'
 import { listLevel, maxOf, selectChain } from './utils/keys/keys.ts'
-import type { Context, ObjectRef } from './utils/types/types.ts'
+import type { Context, ObjectRef } from './utils/share/types.ts'
 
 export const createPlan = async ({ storage, config }: Context, txid?: number) => {
         const levels = await Promise.all(DIFF_LEVELS.map((level) => listLevel(storage, config.prefix, level)))

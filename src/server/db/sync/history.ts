@@ -1,8 +1,8 @@
 import * as Y from 'yjs'
-import { ORIGIN } from './utils/const/const.ts'
+import { ORIGIN } from './utils/share/const.ts'
 import { isLayoutKey } from './utils/keys/keys.ts'
 import { UNDO } from './config.ts'
-import type { Side, Step, Tree } from './utils/types/types.ts'
+import type { Side, Step, Tree } from './utils/share/types.ts'
 
 export const createHistory = (doc: Y.Doc, tree: Tree) => {
         const isLayout = (tr: Y.Transaction) => [...(tr.changed.get(tree as any) ?? [])].some(isLayoutKey)

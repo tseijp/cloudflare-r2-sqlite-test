@@ -1,8 +1,8 @@
-import { ALL_LEVELS, COMPACT_LEVELS, SNAPSHOT_LEVEL } from './utils/const/const.ts'
 import { listLevel } from './utils/keys/keys.ts'
+import { ALL_LEVELS, COMPACT_LEVELS, SNAPSHOT_LEVEL } from './utils/share/const.ts'
 import { loadState } from './state.ts'
 import type { Frame } from '../utils/share/types.ts'
-import type { Compacted, Context, Pushed, Ticked } from './utils/types/types.ts'
+import type { Compacted, Context, Pushed, Ticked } from './utils/share/types.ts'
 
 interface Ops {
         push(frames: Frame[], txid: number): Promise<Pushed>

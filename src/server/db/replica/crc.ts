@@ -1,6 +1,6 @@
-import { CHECKSUM_FLAG, CRC_POLY_HI, PENDING_BYTE } from './utils/const/const.ts'
 import { writeU32 } from './utils/bytes/bytes.ts'
-import type { Page, Sums } from './utils/types/types.ts'
+import { CHECKSUM_FLAG, CRC_POLY_HI, PENDING_BYTE } from './utils/share/const.ts'
+import type { Page, Sums } from './utils/share/types.ts'
 
 const tableHi = new Uint32Array(256)
 const tableLo = new Uint32Array(256)

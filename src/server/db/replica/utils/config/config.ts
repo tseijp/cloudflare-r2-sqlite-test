@@ -1,5 +1,5 @@
-import { LEVEL_INTERVALS, LEVEL_RETENTIONS, SNAPSHOT_INTERVAL } from '../const/const.ts'
-import type { ReplicaConfig, ReplicaOptions } from '../types/types.ts'
+import { LEVEL_INTERVALS, LEVEL_RETENTIONS, SNAPSHOT_INTERVAL } from '../share/const.ts'
+import type { ReplicaConfig, ReplicaOptions } from '../share/types.ts'
 
 export const createConfig = (options: ReplicaOptions = {}): ReplicaConfig => {
         const prefix = options.prefix ?? ''

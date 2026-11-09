@@ -1,36 +1,8 @@
-import { HEAD } from './utils/const/const.ts'
-import { CSS } from './utils/config/config.ts'
-import { box, letterOf, rectOf } from './squares.ts'
+import { HEAD } from './utils/share/const.ts'
+import { CSS } from './utils/share/config.ts'
+import { box, letterOf, rectOf } from './utils/slots/squares.ts'
 import { format, styleOf } from './utils/value/value.ts'
-import type { Col, Deco, Page, Row, Sel } from './utils/types/types.ts'
-
-interface Line {
-        id: number
-        pos: number
-        row: Row
-        deco: Deco | undefined
-}
-
-interface Field {
-        x: number
-        y: number
-        w: number
-}
-
-interface Handlers {
-        onKeyDown(e: any): void
-        onBlur(e: any): void
-        onCompositionStart(): void
-        onCompositionEnd(): void
-}
-
-interface BarProps {
-        pages: Page[]
-        current: string | undefined
-        onOpen(pid: string): unknown
-        onAddRow(): unknown
-        onAddCol(): unknown
-}
+import type { Col, Deco, Page, Row, Sel } from './utils/share/types.ts'
 
 export const Ruler = ({ squares }: { squares: number }) => (
         <div style={CSS.band}>
@@ -56,7 +28,20 @@ export const Header = ({ cols, xs }: { cols: Col[]; xs: number[] }) => (
         </div>
 )
 
-export const Lines = ({ lines, cols, xs }: { lines: Line[]; cols: Col[]; xs: number[] }) =>
+export const Lines = ({
+        lines,
+        cols,
+        xs,
+}: {
+        lines: {
+                id: number
+                pos: number
+                row: Row
+                deco: Deco | undefined
+        }[]
+        cols: Col[]
+        xs: number[]
+}) =>
         lines.map((line) =>
                 cols.map((col, c) => (
                         <div key={`${line.id}:${col.id}`} data-r={line.pos} data-c={c} style={{ ...CSS.cell, ...box(xs[c], line.pos, col.width), ...styleOf(line.deco?.styles[col.name]) }}>
@@ -67,9 +52,40 @@ export const Lines = ({ lines, cols, xs }: { lines: Line[]; cols: Col[]; xs: num
 
 export const Selection = ({ sel, xs }: { sel: Sel; xs: number[] }) => <div style={{ ...CSS.frame, ...rectOf(sel, xs) }} />
 
-export const Editor = ({ field, row, seed, handlers }: { field: Field; row: number; seed: string; handlers: Handlers }) => <input autoFocus defaultValue={seed} {...handlers} style={{ ...CSS.input, ...box(field.x, row, field.w) }} />
+export const Editor = ({
+        field,
+        row,
+        seed,
+        handlers,
+}: {
+        field: {
+                x: number
+                y: number
+                w: number
+        }
+        row: number
+        seed: string
+        handlers: {
+                onKeyDown(e: any): void
+                onBlur(e: any): void
+                onCompositionStart(): void
+                onCompositionEnd(): void
+        }
+}) => <input autoFocus defaultValue={seed} {...handlers} style={{ ...CSS.input, ...box(field.x, row, field.w) }} />
 
-export const Bar = ({ pages, current, onOpen, onAddRow, onAddCol }: BarProps) => (
+export const Bar = ({
+        pages, //
+        current,
+        onOpen,
+        onAddRow,
+        onAddCol,
+}: {
+        pages: Page[]
+        current: string | undefined
+        onOpen(pid: string): unknown
+        onAddRow(): unknown
+        onAddCol(): unknown
+}) => (
         <div style={CSS.bar}>
                 {pages.map((page) => (
                         <button key={page.id} onClick={() => onOpen(page.id)} style={{ fontWeight: page.id === current ? 700 : 400 }}>

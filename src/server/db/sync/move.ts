@@ -1,8 +1,8 @@
-import { ORIGIN } from './utils/const/const.ts'
+import { ORIGIN } from './utils/share/const.ts'
 import { swap } from './swap.ts'
 import type * as Y from 'yjs'
 import type { Req } from '../utils/share/types.ts'
-import type { Run, Tree } from './utils/types/types.ts'
+import type { Run, Tree } from './utils/share/types.ts'
 
 export const createMove = (doc: Y.Doc, tree: Tree, run: Run, onSwap: (ids: number[]) => void) => {
         let current: Req | null = null

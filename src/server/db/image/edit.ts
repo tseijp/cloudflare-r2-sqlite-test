@@ -1,4 +1,4 @@
-import { DECO, DROP, MARK, STYLE, SYSTEM_DDL } from './utils/const/const.ts'
+import { DECO, DROP, MARK, STYLE, SYSTEM_DDL } from './utils/share/const.ts'
 import { columnSql, quote } from './ddl.ts'
 import { normalize } from './utils/value/value.ts'
 import type { CellOp, ClearOp, ColAddOp, ColHideOp, ColRenameOp, Mark, Op, RowAddOp, RowRemoveOp, Sheet, StyleOp } from '../utils/share/types.ts'

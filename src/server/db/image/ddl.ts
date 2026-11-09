@@ -1,4 +1,4 @@
-import { DROP, KIND_OF, RESERVED, SQL_TYPE, SYSTEM } from './utils/const/const.ts'
+import { DROP, KIND_OF, RESERVED, SQL_TYPE, SYSTEM } from './utils/share/const.ts'
 import { normalize } from './utils/value/value.ts'
 import type { ColType, Column, Described, Value } from '../utils/share/types.ts'
 import type { Sql } from './sql.ts'

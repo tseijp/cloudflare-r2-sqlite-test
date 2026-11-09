@@ -1,7 +1,7 @@
 import { parseHeader } from './decode.ts'
-import { ALL_LEVELS, HEADER_SIZE } from './utils/const/const.ts'
+import { ALL_LEVELS, HEADER_SIZE } from './utils/share/const.ts'
 import { listLevel, maxOf } from './utils/keys/keys.ts'
-import type { Context, ReplicaState } from './utils/types/types.ts'
+import type { Context, ReplicaState } from './utils/share/types.ts'
 
 export const createState = (): ReplicaState => ({
         loaded: null,

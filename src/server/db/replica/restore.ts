@@ -3,7 +3,7 @@ import { readCommit, splitImage } from './pages.ts'
 import { createPlan } from './plan.ts'
 import { readIndex, readPages } from './read.ts'
 import { loadState } from './state.ts'
-import type { Context, ObjectIndex, Page, ReplicaState } from './utils/types/types.ts'
+import type { Context, ObjectIndex, Page, ReplicaState } from './utils/share/types.ts'
 
 const createImage = (maxPgno: number) => {
         let pageSize = 0

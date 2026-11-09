@@ -1,20 +1,20 @@
-import { KEY } from './utils/const/const.ts'
+import { KEY } from './utils/share/const.ts'
 import { colKey, decoKey, isColKey, isPageKey, rowKey } from './utils/keys/keys.ts'
 import type * as Y from 'yjs'
-import type { Col, Deco, Editing, Page, Pair, Row, Sel, Tree, View, Win } from './utils/types/types.ts'
+import type { Col, Deco, Editing, Page, Pair, Row, Sel, Tree, View, Win } from './utils/share/types.ts'
 
-const byPos = <T extends { pos: number }>(a: T, b: T) => a.pos - b.pos
+const _byPos = <T extends { pos: number }>(a: T, b: T) => a.pos - b.pos
 
-const keysOf = (tree: Tree, isMatch: (key: string) => boolean) => [...tree.keys()].filter(isMatch)
+const _keysOf = (tree: Tree, isMatch: (key: string) => boolean) => [...tree.keys()].filter(isMatch)
 
 export const readPages = (tree: Tree): Page[] =>
-        keysOf(tree, isPageKey)
+        _keysOf(tree, isPageKey)
                 .map((key) => tree.get(key))
-                .sort(byPos)
+                .sort(_byPos)
 
 export const readCols = (tree: Tree, pid: string, isAll = false): Col[] => {
-        const cols = keysOf(tree, isColKey(pid)).map((key) => tree.get(key) as Col)
-        return cols.filter((col) => isAll || !col.hidden).sort(byPos)
+        const cols = _keysOf(tree, isColKey(pid)).map((key) => tree.get(key) as Col)
+        return cols.filter((col) => isAll || !col.hidden).sort(_byPos)
 }
 
 export const readWin = (tree: Tree): Win | null => tree.get(KEY.win) ?? null

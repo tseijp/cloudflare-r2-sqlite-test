@@ -1,8 +1,8 @@
 import * as Y from 'yjs'
 import { rowKey } from './utils/keys/keys.ts'
 import { isSame } from './utils/tree/tree.ts'
+import type { Pair, Tree } from './utils/share/types.ts'
 import type { Queried, Row, Value } from '../utils/share/types.ts'
-import type { Pair, Tree } from './utils/types/types.ts'
 
 const pairsAt = (tree: Tree, id: number) => tree.get(rowKey(id)) as Y.Array<Pair> | undefined
 

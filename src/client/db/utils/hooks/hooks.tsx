@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react'
 
-interface Store {
+interface _Store {
         subscribe(notify: () => void): () => void
         get(): number
 }
 
-export const useTree = (store: Store) => useSyncExternalStore(store.subscribe, store.get)
+export const useTree = (store: _Store) => useSyncExternalStore(store.subscribe, store.get)

@@ -1,7 +1,7 @@
 // @ts-ignore
 import factory from 'wa-sqlite/dist/wa-sqlite.mjs'
 import { PAGE_SIZE, VFS } from './utils/config/config.ts'
-import { SETUP } from './utils/const/const.ts'
+import { SETUP } from './utils/share/const.ts'
 import { createSql, openDb } from './sql.ts'
 import { createVfs } from './vfs.ts'
 
