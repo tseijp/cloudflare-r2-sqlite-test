@@ -25,7 +25,7 @@ tools: Read, Bash
 
 製品コードを読み、`skills/sqlite/SKILL.md` の不変条件ごとに反例を探す。
 
-- tree の `rows/` に窓の外の行を set する経路、tree を書いてから SQL へ流す経路
+- tree の `row/` に窓の外の行を set する経路、tree を書いてから SQL へ流す経路
 - page table への CREATE INDEX、操作から直接呼ばれる DROP COLUMN
 - 装飾の delete が本体の delete と別 transaction になっている箇所
 - 窓のために image 全体を読む箇所

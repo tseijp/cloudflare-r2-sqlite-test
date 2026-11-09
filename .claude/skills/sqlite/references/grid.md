@@ -21,9 +21,9 @@ table の外のマスは data も装飾も持たず、列幅の合計が 35 を�
 
 | 操作                               | SQL                                                                               | tree                                  | frame            |
 | ---------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------- | ---------------- |
-| click / shift+click / drag で選択  | 無し                                                                              | 選択範囲 (一時 key)                   | 0                |
-| 矢印 / Tab で移動                  | 無し                                                                              | 選択 (列単位で飛ぶ)                   | 0                |
-| Enter / F2 / 文字 key で編集開始   | 無し                                                                              | 編集 buffer (確定まで局所)            | 0                |
+| click / shift+click / drag で選択  | 無し                                                                              | 無し (browser の一時状態)             | 0                |
+| 矢印 / Tab で移動                  | 無し                                                                              | 無し (browser の一時状態)             | 0                |
+| Enter / F2 / 文字 key で編集開始   | 無し                                                                              | 無し (確定まで browser の局所)        | 0                |
 | 編集の確定                         | `UPDATE page_x SET "列" = ? WHERE _id = ?` と該当 cell の MARK の delete / insert | 窓内なら行 1 key を patch             | 1 (同値なら 0)   |
 | Delete で範囲 clear                | 範囲の行を `IN` で 1 文                                                           | 窓の該当行を patch                    | 行数 ÷ f         |
 | space でチェック反転               | UPDATE 1 文 (0 / 1)                                                               | 行 1 key                              | 1                |
@@ -40,14 +40,14 @@ table の外のマスは data も装飾も持たず、列幅の合計が 35 を�
 | CSV の出力                         | 全走査の SELECT を stream                                                         | 無し                                  | 0                |
 | undo / redo                        | act が返した逆向きの op を同じ経路で流す                                          | 窓を読み直す                          | 元の op と同じ   |
 
-undo は tree の履歴から SQL を導いて適用するので、窓に無い行の編集は履歴に入らない。
-これは履歴が窓の生存期間に限られるという仕様であり、全履歴は複製側の TXID が担う。
+undo は act が transaction の中で求めた逆向きの op を DO の memory に積み、同じ act の経路で SQL に流す。窓の外の行の編集も履歴に入り、move は履歴に入らない。
+履歴は DO の生存期間に限られ、過去の時点へ戻す機能は持たない。
 
 ## 3. 窓
 
 窓は表示中 page の連続する w 行 (既定 50、前後に 1 窓ぶんの先読み) と、横 35 マスの範囲である。
-tree の key は `rows/<_id>` の形で窓の行だけを持ち、scroll で範囲が外れた行は delete し新しい行を set する。
-入れ替えは `win` origin で transact し、編集は `user` origin で transact する。
+tree の key は `page/<名前>` (layout)、`win` (範囲と表示順の `_id`)、`row/<_id>` (値の Y.Array)、`deco/<_id>` (装飾) であり、scroll で範囲が外れた行は delete し新しい行を set する。
+1 cell の編集は Y.Array の 1 要素の差し替えだけを送る。入れ替えは `win` origin で transact し、編集は `act` origin で transact する。
 tree は保存しない。tree の大きさは窓の key を除くと行数 N に依存しない。
 
 窓の読みは本体 1 文と装飾 2 文の 3 文で、どれも (page, row) の範囲走査であり行数 N に依存しない。
@@ -64,8 +64,8 @@ cell の装飾 (塗り、枠、揃え) は「どの cell か」に付くので (
 
 ## 5. LLM が観測する面
 
-LLM に返る状態は、layout と設定、窓の行、選択と編集 mode の一時 key であり、行数 N に依存しない。
+LLM に返る状態は、layout と窓の行と装飾であり、行数 N に依存しない。選択と編集中の buffer は browser ごとの一時状態で tree に載せない。
 schema 一覧は page ごとの列名と型と既定値と現在の行数を返す。
-自由 SQL は読み取り専用の文を全走査で実行し、返す行数は窓の行数を上限に LIMIT を強制する。
+自由 SQL は全走査で実行し、返す行数は窓の行数 (50) を上限に切る。
 集計 (COUNT、SUM、GROUP BY) は O(N) で許す。
 書き込みは SQL ではなく操作 (act) を経由させ、操作 → SQL → tree の一方向を LLM にも適用する。
