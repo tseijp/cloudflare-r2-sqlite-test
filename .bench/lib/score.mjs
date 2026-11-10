@@ -1,115 +1,113 @@
-export const AXES = { intake: 150, window: 150, edit: 200, replica: 200, style: 100, sync: 100, observe: 100 }
+export const MAX = { 取込: 150, 窓: 150, 編集: 200, 保存: 200, 装飾: 100, 同期: 100, 観測: 100 }
 
-const EPS = 1e-9
+const _steps = (over, unit) => (over > 1e-9 ? Math.ceil(over / unit - 1e-9) : 0)
 
-const over = (value, limit, step) => (value > limit + EPS ? Math.ceil((value - limit - EPS) / step) : 0)
+const _item = (key, value, limit, ok, minus) => ({ key, value, limit, ok: !!ok, minus: ok ? 0 : minus })
 
-const clamp = (points, max) => Math.max(0, Math.min(max, Math.round(points)))
+const _sum = (max, items) => Math.max(0, max - items.reduce((a, i) => a + i.minus, 0))
 
-const checked = (max, step, checks, values) => {
-        const notes = Object.keys(checks).filter((k) => !checks[k])
-        return { points: clamp(max - step * notes.length, max), notes, values }
+const _intake = (m) => {
+        const v = m.intake
+        const rho = _item('ρ', v.rho, 1.3, v.rho <= 1.3, 10 * _steps(v.rho - 1.3, 0.1))
+        const time = _item('時間比', v.timeRatio, [8, 12], v.timeRatio >= 8 && v.timeRatio <= 12, 30)
+        return [rho, time]
 }
 
-const intakeOf = (m) => {
-        const values = {
-                rho: m.rho,
-                time_ratio: m.time_ratio,
-                baseline_rho: m.baseline.rho,
-                baseline_time: m.baseline.time_ratio,
+const _window = (m) => {
+        const w = m.window
+        const one = w.formula.n
+        const ratio = w.isSmall ? w.n.pages / one : w.pageRatio
+        const limit = w.isSmall ? 1 : 1.1
+        const key = w.isSmall ? 'P(N) ÷ 窓 1 つ分' : 'P(N) ÷ P(N/10)'
+        const pages = _item(key, ratio, limit, ratio <= limit, 15 * _steps(ratio - limit, 0.1))
+        const rate = w.byteRate
+        const bytes = _item('返した byte ÷ (行 byte × 行数 × 1.5)', rate, 1, rate <= 1, 10 * _steps(rate - 1, 0.1))
+        return [pages, bytes]
+}
+
+const _edit = (m) => {
+        const e = m.edit
+        const fr = (x) => x.frames
+        const one = _item('1 cell', fr(e.one), 1, fr(e.one) === 1 && e.isApplied, 0)
+        const rest = [
+                _item('同値再確定', fr(e.same), 0, fr(e.same) === 0, 40),
+                _item('行追加', fr(e.rowAdd), 2, fr(e.rowAdd) !== null && fr(e.rowAdd) <= 2, 40),
+                _item('列追加', fr(e.colAdd), 1, fr(e.colAdd) === 1, 40),
+                _item('改名', fr(e.rename), 1, fr(e.rename) === 1, 40),
+                _item('50 cell', fr(e.bulk), e.bulk.limit, fr(e.bulk) !== null && fr(e.bulk) <= e.bulk.limit, 40),
+        ]
+        const base = one.ok ? 200 : fr(e.one) === 2 ? 100 : 0
+        one.minus = 200 - base
+        return [one, ...rest]
+}
+
+const _save = (m) => {
+        const s = m.save
+        const r = s.restore
+        return [
+                _item('送った byte ÷ (汚れた page × page size)', s.ratio, 1.5, s.ratio <= 1.5,
+                        20 * _steps(s.ratio - 1.5, 0.5)),
+                _item('1 save の put', s.puts, 1, s.puts === 1, 40),
+                _item('100 save 後の object 数', s.hundred.objects, 20, s.hundred.objects <= 20 && !s.hundred.errors, 40),
+                _item('開き直しの GET 回数', r.open.gets, 20, r.open.gets <= 20, 40),
+                _item('開き直しの GET byte ÷ image', r.open.share, 0.05, r.open.share <= 0.05, 40),
+                _item('復元の整合', r.isOk, true, r.isOk, 40),
+        ]
+}
+
+const _style = (m) => {
+        const d = m.style
+        const isVacuous = !(d.written.styles > 0 && d.written.marks > 0)
+        return [
+                _item('装飾が書けた', d.written, '>0', !isVacuous, 100),
+                _item('孤児', d.orphans, 0, d.orphans === 0, 0),
+                _item('空にした後の style 残存', d.kept, 1, d.kept >= 1, 50),
+                _item('run 位置不正', d.badRuns, 0, d.badRuns === 0, 10 * d.badRuns),
+        ]
+}
+
+const _sync = (m) => {
+        const y = m.sync
+        return [
+                _item('1 cell wire ÷ (行 byte × 1.5)', y.one.bytes / y.one.limit, 1, y.one.bytes <= y.one.limit, 25),
+                _item('窓入替 wire ÷ (窓 JSON × 1.3)', y.swap.bytes / y.swap.limit, 1, y.swap.bytes <= y.swap.limit, 25),
+                _item('tree snapshot N ÷ N/10', y.snapshot.ratio, 1.1, y.snapshot.ratio <= 1.1, 25),
+                _item('窓入替が undo に積まれない', y.undo.ok, true, y.undo.ok, 25),
+        ]
+}
+
+const _observe = (m) => {
+        const o = m.observe
+        const isSmall = m.window.isSmall
+        const dump = isSmall ? o.dump.n / o.dump.oneWindow : o.dump.ratio
+        const limit = isSmall ? 1 : 1.1
+        return [
+                _item(isSmall ? 'dump ÷ 窓 1 つ分' : 'dump N ÷ N/10', dump, limit, dump <= limit, 35),
+                _item('SQL の返り行数', o.sql.rows, o.sql.limit, o.sql.rows !== null && o.sql.rows <= o.sql.limit, 35),
+                _item('schema の列名と型と既定値', o.schema.ok, true, o.schema.ok, 35),
+        ]
+}
+
+const _KEY = { 取込: 'intake', 窓: 'window', 編集: 'edit', 保存: 'save', 装飾: 'style', 同期: 'sync', 観測: 'observe' }
+
+const _AXES = { 取込: _intake, 窓: _window, 編集: _edit, 保存: _save, 装飾: _style, 同期: _sync, 観測: _observe }
+
+const _perFixture = (axis, m) => {
+        if (!m.intake?.rho) return { score: 0, items: [_item('取り込み', false, true, false, MAX[axis])] }
+        const items = m[_KEY[axis]]?.error ? [_item('計測', m[_KEY[axis]].error, 'ok', false, MAX[axis])] : _AXES[axis](m)
+        return { score: _sum(MAX[axis], items), items }
+}
+
+export const scoreRun = (measured) => {
+        const fails = measured.filter((m) => !m.intake?.rho).length
+        const axes = {}
+        for (const axis of Object.keys(MAX)) {
+                const per = measured.map((m) => ({ file: m.file, ..._perFixture(axis, m) }))
+                const isIntake = axis === '取込'
+                const pool = isIntake ? per.filter((p, k) => measured[k].intake?.rho) : per
+                const worst = pool.length ? Math.min(...pool.map((p) => p.score)) : 0
+                const score = isIntake ? Math.max(0, worst - 50 * fails) : worst
+                axes[axis] = { score, max: MAX[axis], per }
         }
-        if (!m.ok) return { failed: true, penalty: 0, notes: [m.error], values }
-        const rhoOver = over(m.rho, 1.3, 0.1)
-        const isTimeOk = m.time_ratio >= 8 && m.time_ratio <= 12
-        const notes = [rhoOver && 'rho', !isTimeOk && 'time_ratio'].filter(Boolean)
-        return { penalty: 10 * rhoOver + (isTimeOk ? 0 : 30), notes, values }
-}
-
-const SCORERS = {
-        window: (m) => {
-                const values = { pages: m.pages, ratio: m.ratio, byte_ratio: m.byte_ratio, read_ratio: m.read_ratio }
-                const ratioOver = m.is_small || m.ratio == null ? 0 : over(m.ratio, 1.1, 0.1)
-                const excess = m.byte_ratio == null ? 0 : over((m.byte_ratio - 1) * 100, 0, 10)
-                const notes = [ratioOver && 'page_ratio', excess && 'bytes'].filter(Boolean)
-                return { points: clamp(AXES.window - 15 * ratioOver - 10 * excess, AXES.window), notes, values }
-        },
-        edit: (m) => {
-                const values = Object.fromEntries(Object.entries(m.items).map(([k, v]) => [k, [v.product, v.baseline]]))
-                const cell = m.items.cell.product
-                const rest = ['cell_same', 'row_add', 'col_add', 'col_rename', 'batch50'].filter(
-                        (k) => !m.items[k].pass,
-                )
-                const base = cell === 1 ? AXES.edit : cell === 2 ? AXES.edit / 2 : 0
-                const notes = [...(cell === 1 ? [] : ['cell']), ...rest]
-                return { points: clamp(base - 40 * rest.length, AXES.edit), notes, values }
-        },
-        replica: (m) => {
-                const values = { ratio: m.ratio, restore_match: m.restore_match, index_first: m.index_first }
-                const ratioOver = m.ratio == null ? 0 : over(m.ratio, 1.5, 0.5)
-                const notes = [ratioOver && 'sent_ratio', !m.index_first && 'index_first'].filter(Boolean)
-                return {
-                        points: clamp(AXES.replica - 20 * ratioOver - (m.index_first ? 0 : 60), AXES.replica),
-                        notes,
-                        values,
-                }
-        },
-        style: (m) => {
-                const values = { orphans: m.orphans, persisted: m.persisted, bad_runs: m.bad_runs }
-                const badRuns = m.bad_runs ?? 1
-                const notes = [!m.persisted && 'persisted', badRuns && 'bad_runs'].filter(Boolean)
-                return { points: clamp(AXES.style - (m.persisted ? 0 : 50) - 10 * badRuns, AXES.style), notes, values }
-        },
-        sync: (m) =>
-                checked(
-                        25 * 4,
-                        25,
-                        {
-                                cell_wire: m.cell_wire <= m.cell_limit,
-                                window_wire: m.window_wire <= m.window_limit,
-                                snapshot_ratio: m.snapshot_ratio != null && m.snapshot_ratio <= 1.1,
-                                undo_excluded: m.undo_excluded === true,
-                        },
-                        { cell_ratio: m.cell_ratio, window_ratio: m.window_ratio, snapshot_ratio: m.snapshot_ratio },
-                ),
-        observe: (m) =>
-                checked(
-                        AXES.observe,
-                        35,
-                        {
-                                dump_ratio: m.is_small || (m.dump_ratio != null && m.dump_ratio <= 1.1),
-                                sql_capped: m.sql_capped === true,
-                                schema: m.schema_ok === true,
-                        },
-                        { dump_ratio: m.dump_ratio, sql_rows: m.sql_rows, schema_columns: m.schema_columns },
-                ),
-}
-
-const intakeAxis = (results) => {
-        const per = results.map((r) => ({ fixture: r.name, ...intakeOf(r.intake) }))
-        const failed = results.length ? per.filter((p) => p.failed).length : 1
-        const worst = Math.max(0, ...per.map((p) => p.penalty))
-        const method = '150 - 50 per failed fixture - worst (rho + time) penalty'
-        return {
-                points: clamp(AXES.intake - 50 * failed - worst, AXES.intake),
-                max: AXES.intake,
-                method,
-                per_fixture: per,
-        }
-}
-
-const scoreOf = (name, m) =>
-        m?.ok || (name === 'edit' && m?.items?.cell?.product != null)
-                ? SCORERS[name](m)
-                : { points: 0, notes: [m?.error] }
-
-const minAxis = (name, results) => {
-        const per = results.map((r) => ({ fixture: r.name, ...scoreOf(name, r[name]) }))
-        const points = per.length ? Math.min(...per.map((p) => p.points)) : 0
-        return { points, max: AXES[name], method: 'min over fixtures', per_fixture: per }
-}
-
-export const scoreAll = (results) => {
-        const axes = { intake: intakeAxis(results) }
-        for (const name of Object.keys(SCORERS)) axes[name] = minAxis(name, results)
-        return { axes, total: Object.values(axes).reduce((n, a) => n + a.points, 0) }
+        return { axes, sum: Object.values(axes).reduce((a, x) => a + x.score, 0), fails }
 }

@@ -1,54 +1,95 @@
-import { attempt, rowsOf } from './product.mjs'
+import { userCols } from './edit.mjs'
+import { WINDOW } from './scan.mjs'
+import { guard, quote, rowsOf, valueOf } from './sql.mjs'
 
-const MARKS_LONG = [
-        { from: 0, to: 5, attr: 'bold', val: '1' },
-        { from: 6, to: 11, attr: 'color', val: '#f00' },
-]
+const _JSON = JSON.stringify({ b: 1 })
 
-const MARKS_SHORT = [{ from: 0, to: 2, attr: 'bold', val: '1' }]
+const _isLive = `substr(name, 1, 6) <> '_drop:'`
 
-const countBadRuns = (res) => {
-        if (!Array.isArray(res?.marks)) return null
-        const rows = new Map(rowsOf(res).map((r) => [r._id, r]))
-        const lengthOf = (m) => String(rows.get(m.row)?.[m.col] ?? '').length
-        return res.marks.filter((m) => m.to > lengthOf(m) || m.from < 0 || m.from > m.to).length
+const _orphans = async (db, table, page) => {
+        const rows = `SELECT _id FROM ${quote(page)}`
+        const cols = `SELECT name FROM pragma_table_info(?) WHERE ${_isLive}`
+        const isOrphan = `s.row NOT IN (${rows}) OR s.col NOT IN (${cols})`
+        const text = `SELECT count(*) FROM ${table} s WHERE s.page = ? AND (${isOrphan})`
+        return Number(await valueOf(db, text, [page, page]))
 }
 
-export const measureStyle = async ({ full, page, textCol, otherCol, ids, w }) => {
-        const image = full.db?.image
-        if (!image) return { ok: false, error: 'image facet missing' }
-        const marker = `bench-style-${Date.now().toString(36)}`
-        const json = JSON.stringify({ fill: marker })
-        const steps = []
-        const run = async (name, fn) => {
-                const r = await attempt(fn)
-                steps.push({ name, ok: r.ok, error: r.error })
-                return r
-        }
-        const [rowA, rowB, rowC] = [ids[10], ids[20], ids[30]]
-        const req = { page, from: 0, to: w }
-        const cell = (row, value, marks) => ({ kind: 'cell', page, row, col: textCol, value, marks })
-        await run('style_set', () => image.edit({ kind: 'style', page, row: rowA, col: textCol, json }))
-        await run('cell_clear', () => image.edit(cell(rowA, null)))
-        const shown = await run('window', () => image.window(req))
-        await run('marks_long', () => image.edit(cell(rowB, 'bench marks text', MARKS_LONG)))
-        await run('marks_short', () => image.edit(cell(rowB, 'ab', MARKS_SHORT)))
-        const marked = await run('window_marks', () => image.window(req))
-        await run('style_row', () => image.edit({ kind: 'style', page, row: rowC, col: textCol, json }))
-        await run('row_remove', () => image.edit({ kind: 'row.remove', page, row: rowC }))
-        await run('style_col', () => image.edit({ kind: 'style', page, row: rowA, col: otherCol, json }))
-        await run('col_hide', () => image.edit({ kind: 'col.hide', page, name: otherCol }))
-        await run('window_sorted', () => image.window({ ...req, order: { col: textCol, dir: 'desc' } }))
-        const orphans = await run('orphans', () => image.orphans())
-        return {
-                ok: steps.every((s) => s.ok),
-                error: steps.find((s) => !s.ok)?.error ?? null,
-                steps,
-                persisted: JSON.stringify(shown.value ?? null).includes(marker),
-                bad_runs: countBadRuns(marked.value),
-                marks_seen: marked.value?.marks?.filter((m) => m.row === rowB).length ?? null,
-                orphans: orphans.value,
-                rows: { style: rowA, marks: rowB, removed: rowC },
-                cols: { text: textCol, hidden: otherCol },
-        }
+export const orphansOf = async (db, pages) => {
+        let sum = 0
+        for (const page of pages) sum += (await _orphans(db, '_style', page)) + (await _orphans(db, '_mark', page))
+        return sum
+}
+
+const _badRuns = async (db, page, col) => {
+        const join = `_mark m JOIN ${quote(page)} t ON t._id = m.row`
+        const isBad = `m."to" > length(coalesce(t.${quote(col)}, '')) OR m."from" > m."to" OR m."from" < 0`
+        const text = `SELECT count(*) FROM ${join} WHERE m.page = ? AND m.col = ? AND (${isBad})`
+        return Number(await valueOf(db, text, [page, col]))
+}
+
+const _countOf = async (db, table, page) =>
+        Number(await valueOf(db, `SELECT count(*) FROM ${table} WHERE page = ?`, [page]))
+
+const _kept = async (db, page, id, col) => {
+        const text = 'SELECT count(*) FROM _style WHERE page = ? AND row = ? AND col = ? AND json = ?'
+        return Number(await valueOf(db, text, [page, id, col, _JSON]))
+}
+
+const _textCol = async (db, page) => {
+        const schema = await db.schema()
+        const col = schema.find((p) => p.page === page)?.columns.find((c) => c.type === 'text')?.name
+        if (col) return col
+        await db.act({ kind: 'col.add', page, name: 'bench_t', type: 'text' })
+        return 'bench_t'
+}
+
+const _texts = async (db, page, col) =>
+        rowsOf(await db.sql(`SELECT _id, ${quote(col)} FROM ${quote(page)} ORDER BY _id LIMIT ?`, [8]))
+
+const _seed = async (db, page, text) => {
+        const seed = await _texts(db, page, text)
+        const cells = seed.map(([id, v]) => ({ row: id, col: text, value: v || 'bench text ' + id }))
+        await db.act({ kind: 'cells', page, cells })
+        return _texts(db, page, text)
+}
+
+const _decorate = async (db, page, rows, text, other) => {
+        const styled = rows.flatMap(([id]) => [text, other].map((col) => ({ row: id, col, json: _JSON })))
+        const run = (v) => [{ from: 0, to: String(v).length, attr: 'b', val: '1' }]
+        const marks = rows.map(([id, v]) => ({ row: id, col: text, marks: run(v) }))
+        const style = await guard(() => db.act({ kind: 'style', page, cells: styled }))
+        const mark = await guard(() => db.act({ kind: 'cells', page, cells: marks }))
+        const written = { styles: await _countOf(db, '_style', page), marks: await _countOf(db, '_mark', page) }
+        return { style, mark, written }
+}
+
+const _empty = (db, page, text, rows) => {
+        const long = String(rows[3][1])
+        const short = long.slice(0, Math.max(1, Math.floor(long.length / 2)))
+        const cells = [{ row: rows[2][0], col: text, value: '' }, { row: rows[3][0], col: text, value: short }]
+        return guard(() => db.act({ kind: 'cells', page, cells }))
+}
+
+export const measureStyle = async (ctx) => {
+        const db = ctx.sides.n.db
+        const page = ctx.page
+        const text = await _textCol(db, page)
+        const rows = await _seed(db, page, text)
+        const ids = rows.map((r) => r[0])
+        const other = (await userCols(db, page)).filter((c) => c !== text).at(-1)
+        const done = await _decorate(db, page, rows, text, other)
+        const steps = { style: done.style, marks: done.mark }
+        steps.rowRemove = await guard(() => db.act({ kind: 'row.remove', page, rows: [ids[0], ids[1]] }))
+        steps.colRemove = await guard(() => db.act({ kind: 'col.remove', page, name: other }))
+        steps.sort = await guard(() => db.move({ page, from: 1, to: WINDOW, order: { col: text, dir: 'desc' } }))
+        steps.pos = await guard(() => db.act({ kind: 'col.set', page, name: text, pos: 1 }))
+        const orphans = await orphansOf(db, ctx.intake.pages)
+        steps.empty = await _empty(db, page, text, rows)
+        const kept = await _kept(db, page, ids[2], text)
+        const badRuns = await _badRuns(db, page, text)
+        const after = await orphansOf(db, ctx.intake.pages)
+        await db.move({ page, from: 1, to: WINDOW })
+        const failed = Object.entries(steps).filter(([, r]) => r.error)
+        const errors = Object.fromEntries(failed.map(([k, r]) => [k, r.error]))
+        return { text, other, ids, written: done.written, orphans: Math.max(orphans, after), kept, badRuns, errors }
 }

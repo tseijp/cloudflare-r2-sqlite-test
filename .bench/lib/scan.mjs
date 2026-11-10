@@ -1,52 +1,75 @@
-import { readFileSync, statSync } from 'node:fs'
-import { basename, extname, relative } from 'node:path'
-import { parseCsv, toPage } from './csv.mjs'
-import { listFiles } from './hash.mjs'
-import { parseXlsx } from './xlsx.mjs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
+import { readCsv } from './csv.mjs'
 
-const LIMIT = 100 * 1024 * 1024
-const KINDS = new Set(['.csv', '.xlsx'])
+export const WINDOW = 50
 
-export const listFixtures = (dir) =>
-        listFiles(dir)
-                .filter((file) => KINDS.has(extname(file).toLowerCase()))
-                .map((file) => ({ file, name: relative(dir, file), bytes: statSync(file).size }))
+export const LIMIT_BYTES = 100 * 1024 * 1024
 
-const pagesOf = (entry, buffer) => {
-        const isXlsx = extname(entry.file).toLowerCase() === '.xlsx'
-        if (isXlsx) return parseXlsx(buffer).map((s) => toPage(s.name, s.rows))
-        return [toPage(basename(entry.file, extname(entry.file)), parseCsv(buffer))]
-}
+const _NUMBER = /^\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?\s*$/
 
-export const loadFixture = (entry) => {
-        const isXlsx = extname(entry.file).toLowerCase() === '.xlsx'
-        const pages = pagesOf(entry, readFileSync(entry.file))
-        const csvBytes = isXlsx ? pages.reduce((n, p) => n + p.csv_bytes, 0) : entry.bytes
-        return { ...entry, container: isXlsx ? '複数' : '単一', pages, csv_bytes: csvBytes }
-}
+const _walk = (dir) =>
+        readdirSync(dir, { withFileTypes: true })
+                .sort((a, b) => (a.name < b.name ? -1 : 1))
+                .flatMap((e) => (e.isDirectory() ? _walk(join(dir, e.name)) : [join(dir, e.name)]))
 
-export const mainPageOf = (pages) => pages.reduce((a, p) => (p.rows.length > a.rows.length ? p : a))
-
-export const statsOf = (fixture) => {
-        const main = mainPageOf(fixture.pages)
-        const numericCols = main.columns.filter((c) => c.type !== 'text').length
-        const totalRows = fixture.pages.reduce((n, p) => n + p.rows.length, 0)
-        return {
-                page: main.name,
-                rows: main.rows.length,
-                cols: main.columns.length,
-                numeric: main.columns.length ? numericCols / main.columns.length : 0,
-                max_cell: Math.max(0, ...fixture.pages.map((p) => p.max_cell)),
-                total_rows: totalRows,
-                row_bytes: totalRows ? fixture.csv_bytes / totalRows : 0,
-                csv_bytes: fixture.csv_bytes,
-                container: fixture.container,
-                pages: fixture.pages.map((p) => ({ name: p.name, rows: p.rows.length, cols: p.columns.length })),
+const _createStats = () => {
+        const _s = { records: 0, cols: 0, cells: 0, cellBytes: 0, maxCell: 0, kinds: [] }
+        const add = (row, rowBytes, rowMax) => {
+                _s.records++
+                _s.cols = Math.max(_s.cols, row.length)
+                _s.cells += row.length
+                _s.cellBytes += rowBytes - row.length
+                if (rowMax > _s.maxCell) _s.maxCell = rowMax
+                if (_s.records === 1) return
+                for (let c = 0; c < row.length; c++) {
+                        const v = row[c]
+                        if (v === '' || _s.kinds[c] === -1) continue
+                        _s.kinds[c] = _NUMBER.test(v) ? 1 : -1
+                }
         }
+        const done = () => ({ ..._s, kinds: undefined, numeric: _s.kinds.filter((k) => k === 1).length })
+        return { add, done }
 }
 
-export const scanFixtures = (dir) =>
-        listFixtures(dir).map((entry) => {
-                if (entry.bytes > LIMIT) return { ...entry, excluded: 'over_100mb' }
-                return { ...entry, ...statsOf(loadFixture(entry)) }
-        })
+const _content = (cols, ratio, maxCell, limit) => {
+        if (maxCell > limit) return '長文'
+        if (ratio < 0.7) return '短文 categorical'
+        if (cols <= 10) return '細長 numeric'
+        return '幅広 numeric'
+}
+
+const _scale = (rows) => {
+        if (rows < WINDOW * 100) return '小'
+        if (rows < WINDOW * 2000) return '中'
+        return '大'
+}
+
+const _measure = (root, path, limit) => {
+        const st = _createStats()
+        readCsv(readFileSync(path), st.add)
+        const s = st.done()
+        const ratio = s.numeric / Math.max(1, s.cols)
+        const klass = { content: _content(s.cols, ratio, s.maxCell, limit), container: '単一', scale: _scale(s.records) }
+        const bytes = statSync(path).size
+        const avgCell = s.cellBytes / Math.max(1, s.cells)
+        const file = relative(root, path)
+        const shape = { rows: s.records, cols: s.cols, numericRatio: ratio, avgCell, maxCell: s.maxCell, sheets: 1 }
+        return { file, bytes, ...shape, class: klass }
+}
+
+const _excluded = (root, path) => {
+        const bytes = statSync(path).size
+        if (/\.xlsx$/i.test(path)) return { file: relative(root, path), bytes, excluded: 'xlsx は試験外 (利用者の指示)' }
+        if (bytes > LIMIT_BYTES) return { file: relative(root, path), bytes, excluded: '100MB 超' }
+        return null
+}
+
+export const scanData = (root, limit, onFile = () => {}) =>
+        _walk(root)
+                .filter((path) => /\.(csv|xlsx)$/i.test(path))
+                .map((path) => {
+                        const out = _excluded(root, path)
+                        onFile(relative(root, path), !!out)
+                        return out ?? _measure(root, path, limit)
+                })

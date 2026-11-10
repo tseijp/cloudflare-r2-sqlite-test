@@ -1,42 +1,64 @@
-import { attempt, jsonBytes, rowsOf } from './product.mjs'
+import { WINDOW } from './scan.mjs'
+import { closeSide, openSide } from './side.mjs'
+import { guard, settle } from './sql.mjs'
+import { getLog } from './storage.mjs'
+import { byteOf, windowJson, winOf } from './tree.mjs'
 
-const pagesOf = (shape, w) => (shape?.f > 0 ? Math.ceil(w / shape.f) + shape.depth - 1 : null)
+export const formulaPages = (tree, rows) => Math.ceil(rows / Math.max(tree.f, 1e-9)) + Math.max(tree.depth, 1) - 1
 
-const ratioOf = (a, b) => (a != null && b ? a / b : null)
+const _isPage = (e) => e.op === 'get' && (e.kind === 'range' || e.kind === 'whole')
 
-const baselineOf = ({ full, tenth, page, w }) => {
-        const shape = full.base.shape(page)
-        const pages = pagesOf(shape, w)
-        const pagesTenth = pagesOf(tenth.base.shape(page), w)
-        return { pages, pages_tenth: pagesTenth, ratio: ratioOf(pages, pagesTenth), f: shape.f, depth: shape.depth }
+const _pagesOf = (count, pageSize) => count.log.filter(_isPage).reduce((a, e) => a + Math.ceil(e.bytes / pageSize), 0)
+
+export const firstWindow = async (openDb, side, page, pageSize) => {
+        side.storage.reset()
+        const reopened = await openSide(openDb, side.prefix, side.storage)
+        const res = await guard(() => reopened.db.move({ page, from: 1, to: WINDOW }))
+        await settle()
+        const count = side.storage.reset()
+        const out = {
+                error: res.error,
+                gets: count.get,
+                getBytes: count.getBytes,
+                suffix: count.suffix,
+                rangeGets: count.range + count.whole,
+                pages: _pagesOf(count, pageSize),
+                classA: count.put + count.list + count.delete,
+                firstIsIndex: count.log.find((e) => e.op === 'get')?.kind === 'suffix',
+                returned: byteOf(windowJson(reopened.doc)),
+                log: getLog(count),
+                ids: (winOf(reopened.doc).ids ?? []).length,
+        }
+        return { out, reopened }
 }
 
-export const measureWindow = async (ctx) => {
-        const { full, tenth, page, rowBytes, w, pageSize } = ctx
-        const baseline = baselineOf(ctx)
-        if (!full.db?.image) return { ok: false, error: 'image facet missing', baseline }
-        const req = { page, from: 0, to: w }
-        const res = await attempt(() => full.db.image.window(req))
-        const rows = rowsOf(res.value)
-        const bytes = jsonBytes(res.value)
-        const pages = pagesOf(full.shape, w)
-        const pagesTenth = pagesOf(tenth.shape, w)
-        const limit = rowBytes * rows.length * 1.5
-        const { f, depth, overflow } = full.shape ?? {}
+const _saved = (res) => res.value ?? res.error
+
+export const measureWindow = async (openDb, ctx) => {
+        const { intake } = ctx
+        const saved = { n: await guard(() => ctx.sides.n.db.save()), t: await guard(() => ctx.sides.t.db.save()) }
+        const n = await firstWindow(openDb, ctx.sides.n, ctx.page, intake.pageSize)
+        const t = await firstWindow(openDb, ctx.sides.t, ctx.pageT, intake.pageSize)
+        await closeSide(n.reopened)
+        await closeSide(t.reopened)
+        const rows = Math.min(WINDOW, intake.rows.n)
+        const rowByte = intake.csvBytes.n / intake.records.n
+        const rowsT = Math.min(WINDOW, intake.rows.t)
+        const formula = { n: formulaPages(intake.tree.n, rows), t: formulaPages(intake.tree.t, rowsT) }
+        const ratio = t.out.pages > 0 ? n.out.pages / t.out.pages : n.out.pages > 0 ? Infinity : 1
+        const limit = rowByte * rows * 1.5
         return {
-                ok: res.ok && rows.length > 0,
-                error: res.error,
-                req,
-                pages,
-                pages_tenth: pagesTenth,
-                ratio: ratioOf(pages, pagesTenth),
-                bytes,
-                rows_returned: rows.length,
-                byte_limit: limit,
-                byte_ratio: limit ? bytes / limit : null,
-                is_small: (tenth.shape?.rows ?? 0) < w,
-                read_ratio: pages && full.shape?.bytes ? (pages * pageSize) / full.shape.bytes : null,
-                shape: { f, depth, overflow, f_tenth: tenth.shape?.f, depth_tenth: tenth.shape?.depth },
-                baseline,
+                saved: { n: _saved(saved.n), t: _saved(saved.t) },
+                n: n.out,
+                t: t.out,
+                formula,
+                pageRatio: ratio,
+                formulaRatio: formula.n / formula.t,
+                rowByte,
+                rows,
+                byteLimit: limit,
+                byteRate: n.out.returned / limit,
+                readShare: n.out.getBytes / intake.image.n,
+                isSmall: ctx.fixture.class.scale === '小',
         }
 }

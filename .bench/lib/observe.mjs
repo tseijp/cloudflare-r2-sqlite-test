@@ -1,32 +1,39 @@
-import { quoteId } from './inspect.mjs'
-import { attempt, jsonBytes, rowsOf } from './product.mjs'
+import { userCols } from './edit.mjs'
+import { WINDOW } from './scan.mjs'
+import { guard, quote } from './sql.mjs'
+import { byteOf } from './tree.mjs'
 
-const dumpOf = (db) => attempt(() => db.window.dump())
+export const dumpPair = async (ctx) => ({
+        n: byteOf(await ctx.sides.n.db.dump()),
+        t: byteOf(await ctx.sides.t.db.dump()),
+})
 
-export const measureObserve = async ({ full, tenth, w, isSmall }) => {
-        const image = full.db?.image
-        if (!image) return { ok: false, error: 'image facet missing' }
-        const dump = await dumpOf(full.db)
-        const dumpTenth = await dumpOf(tenth.db)
-        const bytes = dump.ok ? jsonBytes(dump.value) : null
-        const bytesTenth = dumpTenth.ok ? jsonBytes(dumpTenth.value) : null
-        const sql = await attempt(() => rowsOf(image.sql(`SELECT * FROM ${quoteId(full.table)}`)).length)
-        const schema = await attempt(() => image.schema().flatMap((s) => s.columns))
-        const cols = schema.value ?? []
-        const isDescribed = (c) => typeof c.name === 'string' && typeof c.type === 'string' && 'default' in c
+const _hasKeys = (c) => c && typeof c.name === 'string' && typeof c.type === 'string' && c.type !== '' && 'default' in c
+
+const _schema = async (db, pages) => {
+        const list = await db.schema()
+        const out = []
+        for (const page of pages) {
+                const entry = list.find((p) => p.page === page)
+                const cols = entry?.columns ?? []
+                const phys = await userCols(db, page)
+                const names = cols.map((c) => c.name)
+                const isSame = phys.length === names.length && phys.every((n) => names.includes(n))
+                const isKeyed = cols.length > 0 && cols.every(_hasKeys)
+                out.push({ page, cols: cols.length, isKeyed, isSame, types: [...new Set(cols.map((c) => c.type))] })
+        }
+        return { pages: out, ok: out.length === pages.length && out.every((p) => p.isKeyed && p.isSame) }
+}
+
+export const measureObserve = async (ctx) => {
+        const db = ctx.sides.n.db
+        const res = await guard(() => db.sql(`SELECT * FROM ${quote(ctx.page)}`))
+        const rows = res.value?.rows?.length ?? null
+        const schema = await guard(() => _schema(db, ctx.intake.pages))
+        const dump = ctx.dump
         return {
-                ok: dump.ok && dumpTenth.ok && sql.ok && schema.ok,
-                error: dump.error ?? dumpTenth.error ?? sql.error ?? schema.error ?? null,
-                dump_bytes: bytes,
-                dump_bytes_tenth: bytesTenth,
-                dump_ratio: bytes != null && bytesTenth ? bytes / bytesTenth : null,
-                is_small: isSmall,
-                dump_keys: dump.value ? Object.keys(dump.value) : null,
-                sql_rows: sql.value,
-                sql_limit: w,
-                sql_capped: sql.ok && sql.value <= w,
-                schema_ok: cols.length > 0 && cols.every(isDescribed),
-                schema_columns: cols.length,
-                schema_sample: cols[0] ?? null,
+                dump: { ...dump, ratio: dump.n / dump.t, oneWindow: ctx.window.byteLimit },
+                sql: { rows, limit: Math.min(WINDOW, ctx.intake.rows.n), error: res.error },
+                schema: schema.value ?? { ok: false, error: schema.error },
         }
 }

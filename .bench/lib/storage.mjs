@@ -1,79 +1,92 @@
-import { sha256 } from './hash.mjs'
-
-const copyOf = (bytes) => new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
-
-const sliceOf = (data, range) => {
-        if (!range) return data
-        if (range.suffix != null) return data.subarray(Math.max(0, data.length - range.suffix))
-        return data.subarray(range.offset ?? 0, (range.offset ?? 0) + (range.length ?? data.length))
-}
-
-export const createBucket = () => {
-        const objects = new Map()
-        const etagAt = (key) => (objects.has(key) ? sha256(objects.get(key)) : null)
-        const put = async (key, bytes, opts) => {
-                const isConflict = opts?.ifNoneMatch === true && objects.has(key)
-                const isStale = typeof opts?.etagMatches === 'string' && etagAt(key) !== opts.etagMatches
-                if (isConflict || isStale) return null
-                objects.set(key, copyOf(bytes))
-                return { etag: etagAt(key) }
-        }
-        const get = async (key, range) => (objects.has(key) ? sliceOf(objects.get(key), range) : null)
-        const head = async (key) => (objects.has(key) ? { size: objects.get(key).length, etag: etagAt(key) } : null)
-        const list = async (prefix) =>
-                [...objects.keys()]
-                        .filter((k) => k.startsWith(prefix ?? ''))
-                        .sort()
-                        .map((key) => ({ key, size: objects.get(key).length }))
-        const remove = async (keys) => [].concat(keys).forEach((key) => objects.delete(key))
-        return { put, get, head, list, delete: remove }
-}
-
-const fresh = () => ({
-        puts: 0,
-        sent_bytes: 0,
-        gets: 0,
-        get_bytes: 0,
-        suffix_gets: 0,
-        range_gets: 0,
-        heads: 0,
-        lists: 0,
-        deletes: 0,
+const _zero = () => ({
+        put: 0,
+        putBytes: 0,
+        list: 0,
+        delete: 0,
+        deleted: 0,
+        get: 0,
+        getBytes: 0,
+        suffix: 0,
+        range: 0,
+        whole: 0,
+        miss: 0,
 })
 
-export const createCounter = (bucket) => {
-        let stats = fresh()
-        let log = []
+const _copy = (view) => new Uint8Array(view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength))
+
+const _toBytes = (bytes) => {
+        if (bytes instanceof Uint8Array) return new Uint8Array(bytes)
+        if (bytes instanceof ArrayBuffer) return new Uint8Array(bytes.slice(0))
+        if (ArrayBuffer.isView(bytes)) return _copy(bytes)
+        return new TextEncoder().encode(String(bytes))
+}
+
+const _body = (bytes) =>
+        Object.assign(bytes, {
+                size: bytes.byteLength,
+                arrayBuffer: async () => _copy(bytes).buffer,
+                bytes: async () => bytes,
+        })
+
+const _slice = (all, range) => {
+        if (!range) return { kind: 'whole', part: all.subarray(0) }
+        const isSuffix = range.suffix !== undefined
+        if (isSuffix) return { kind: 'suffix', part: all.subarray(Math.max(0, all.byteLength - range.suffix)) }
+        const from = range.offset ?? 0
+        const to = range.length === undefined ? all.byteLength : from + range.length
+        return { kind: 'range', part: all.subarray(from, to) }
+}
+
+export const getLog = (count) => count.log.filter((e) => e.op === 'get').map((e) => [e.kind, e.bytes])
+
+export const createStorage = () => {
+        const _map = new Map()
+        let _etag = 0
+        let _count = _zero()
+        let _log = []
+        const put = async (key, bytes, opts = {}) => {
+                const data = _toBytes(bytes)
+                _count.put++
+                _count.putBytes += data.byteLength
+                _log.push({ op: 'put', key, bytes: data.byteLength })
+                const isTaken = opts?.ifNoneMatch && _map.has(key)
+                if (isTaken) return null
+                _map.set(key, data)
+                return { etag: String(++_etag) }
+        }
         const get = async (key, range) => {
-                const data = await bucket.get(key, range)
-                const size = data ? data.byteLength : 0
-                stats.gets++
-                stats.get_bytes += size
-                if (range?.suffix != null) stats.suffix_gets++
-                if (range?.offset != null) stats.range_gets++
-                log.push({ key, range: range ?? null, size })
-                return data
-        }
-        const tally =
-                (name, fn) =>
-                (...args) => {
-                        stats[name]++
-                        return fn(...args)
+                _count.get++
+                const all = _map.get(key)
+                if (!all) {
+                        _count.miss++
+                        _log.push({ op: 'get', key, bytes: 0, kind: 'miss' })
+                        return null
                 }
-        const put = (key, bytes, opts) => {
-                stats.sent_bytes += bytes ? bytes.byteLength : 0
-                return bucket.put(key, bytes, opts)
+                const { kind, part } = _slice(all, range)
+                _count[kind]++
+                _count.getBytes += part.byteLength
+                _log.push({ op: 'get', key, bytes: part.byteLength, kind, range })
+                return _body(new Uint8Array(part))
         }
-        const storage = {
-                put: tally('puts', put),
-                get,
-                head: tally('heads', bucket.head),
-                list: tally('lists', bucket.list),
-                delete: tally('deletes', bucket.delete),
+        const list = async (prefix = '') => {
+                _count.list++
+                _log.push({ op: 'list', key: prefix })
+                const keys = [..._map.keys()].filter((key) => key.startsWith(prefix)).sort()
+                return keys.map((key) => ({ key, size: _map.get(key).byteLength }))
+        }
+        const remove = async (keys) => {
+                const all = Array.isArray(keys) ? keys : [keys]
+                _count.delete++
+                _log.push({ op: 'delete', keys: all.length })
+                for (const key of all) if (_map.delete(key)) _count.deleted++
         }
         const reset = () => {
-                stats = fresh()
-                log = []
+                const out = { ..._count, log: _log }
+                _count = _zero()
+                _log = []
+                return out
         }
-        return { storage, reset, stats: () => ({ ...stats }), log: () => log.slice() }
+        const keys = (prefix = '') => [..._map.keys()].filter((key) => key.startsWith(prefix)).sort()
+        const size = (prefix = '') => keys(prefix).reduce((a, key) => a + _map.get(key).byteLength, 0)
+        return { put, get, list, delete: remove, reset, keys, size }
 }

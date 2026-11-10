@@ -71,24 +71,18 @@ index byte は file の 1% 未満である。
 手元の fixtures はすべて image が 7MB から 58MB になるので、丸ごと保存の階級は 1 件も満たさない。
 丸ごと経路は空に近い file の初回保存にだけ残し、採点は frame 単位の経路で行う。
 
-## 5. 複製器と差分 object
+## 5. 保存の object
 
-採用する複製器 (litestream) は WAL を一定周期 (既定 1 秒) で読み、新しい frame を 1 つの差分 object にして object storage へ送る。
-差分 object は 100 byte の header (magic、flags、page size、適用後の page 数、TXID の最小と最大、時刻、適用前 checksum、WAL の offset と size と salt、node id) に、
-page ごとの 6 byte header (page 番号と flags) と 4 byte の圧縮後 size と lz4 block が続き、6 byte の零終端、
-page 番号と絶対 offset と frame size の varint 3 本 × page 数と 8 byte の index size からなる page index、
-16 byte の trailer (適用後 checksum と file 全体の CRC-64) で終わる。
-file は不変であり、名前が TXID の範囲を表す。
+DO は save を呼んだときだけ、前回の save から WAL frame に現れた page の最新版を 1 つの object にして 1 回の put で送る。時間で常駐する複製器は持たない。
+object は page を page size ごとに並べた本体、page 番号の u32 × page 数の index、16 byte の footer (page 数、page size、適用後の page 数、magic) からなり、圧縮しない。
+名前は `<prefix><txid 12 hex>.full` か `.diff` で、full は全 page、diff は汚れた page だけを持つ。
+diff の数が 16 に達するか、diff の byte の和が image の半分を超えた save では full を送り、それより古い object を 1 回の delete で消す。
+開くときは list 1 回で object を並べ、最後の full から後の object ごとに、末尾の index と footer を 1 回の suffix GET で読み、page 番号 → (object, offset) の表を memory に持つ。
+page は SQL が要求したときに取り、同じ object の中で連続する page を 16 枚まで 1 回の range GET にまとめる。
 
-差分 object は圧縮段階を持つ。
-毎 sync で L0 が生まれ、30 秒ごとに L1、5 分ごとに L2、1 時間ごとに L3 へまとめられ、上位では同じ page 番号の最新だけが残る。
-snapshot は 24 時間ごとの全 page であり、L0 は 5 分で消える。
-読み側は index だけを memory に持ち (page 番号 → object 内 offset)、page は要求時に取得して LRU (既定 10MB) に置き、1 秒ごとに新しい object を見に行く。
-読み側は既定で read-only で、書き込み mode は単一 writer を前提に衝突を検出だけする。
-1GB 境界の lock page は決して object に含めない。
-
-これらから複製のコストは次の式になる。object 数は編集のあった秒数に比例し、総 byte は汚れた page の延べ数 × (S + 10) × lz4 比に比例し、
-復元の読みは snapshot + 各段階の最新 object の index と窓の page だけである。
+これらから保存のコストは次の式になる。
+1 save の class A は put 1 回 (full のときは delete 1 回を足す) で、byte は汚れた page 数 × (page size + 4) + 16 である。
+開き直しの class A は list 1 回、class B は object 数と窓が触れた page の run 数の和である。
 
 <!-- PoC では writer (WAL → 差分 object) を container の複製器に任せるか同じ format を自前で書くかを選べるが、runner が見るのは送った byte と復元の同値と index 先読みだけであり、どちらでも採点は同じである。 -->
 
@@ -96,9 +90,9 @@ snapshot は 24 時間ごとの全 page であり、L0 は 5 分で消える。
 
 put は object 単位で、etag 一致を条件にした put で別 writer の書き込みを検出できる。
 get は offset と length (または末尾からの suffix) で range を取れるので、
-差分 object の index は末尾の 24 byte (index size 8 と trailer 16) を 1 回読んでから index 本体を 1 回読む 2 回の range で得られる。
+object の index は、object の大きさと page size から長さが決まる末尾の suffix 1 回で得られる。
 list は prefix で 1 回 1000 件までなので、object 数が list のコストになり、
-圧縮段階が object 数を抑える。
+full への畳み込みが object 数を抑える。
 multipart は均等な part でなければならず、未完了は 7 日で破棄される。
 
 ## 7. yjs

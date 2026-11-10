@@ -1,61 +1,63 @@
-import { EDIT_LIMITS } from './ops.mjs'
-import { attempt, txidOf } from './product.mjs'
+import { WINDOW } from './scan.mjs'
+import { changedOwners } from './owner.mjs'
+import { framesOf, guard, physicalOf, quote, rowsOf } from './sql.mjs'
 
-const productFrames = async (image, op, since) => {
-        await attempt(() => image.checkpoint())
-        const edited = await attempt(() => image.edit(op))
-        const got = await attempt(() => image.frames(since))
-        const frames = (got.value ?? []).filter((fr) => Number(fr.txid) > since)
-        const fallback = Number(edited.value?.txid) || Number(image.txid) || since
-        return {
-                ok: edited.ok && got.ok,
-                frames,
-                txid: txidOf(frames, fallback),
-                error: edited.error ?? got.error ?? null,
-        }
+export const bump = (v) => {
+        if (v === null || v === undefined || v === '') return '1'
+        if (typeof v === 'number') return String(v + 1)
+        const s = String(v)
+        return s.slice(0, -1) + (s.at(-1) === 'a' ? 'b' : 'a')
 }
 
-const judge = (name, n, f) => (n == null ? null : EDIT_LIMITS[name](n, f))
+export const userCols = async (db, page) =>
+        (await physicalOf(db, page)).filter((c) => c !== '_id' && !c.startsWith('_drop:'))
 
-export const measureEdit = async ({ image, base, ops, f, fBase, txid0, onFrames }) => {
-        const items = {}
-        let since = txid0
-        for (const item of ops) {
-                const ref = await base.frames(item.sql)
-                const baseline = {
-                        baseline: ref.frames,
-                        baseline_pass: judge(item.name, ref.frames, fBase),
-                        baseline_error: ref.error,
-                }
-                if (!image) {
-                        items[item.name] = { op: item.op.kind, product: null, pass: false, mismatch: null, ...baseline }
-                        continue
-                }
-                const got = await productFrames(image, item.op, since)
-                if (onFrames) await onFrames({ name: item.name, frames: got.frames, txid: got.txid })
-                since = Math.max(since, got.txid)
-                const count = got.ok ? got.frames.length : null
-                items[item.name] = {
-                        op: item.op.kind,
-                        product: count,
-                        pass: judge(item.name, count, f) === true,
-                        mismatch: count != null && ref.frames != null ? count !== ref.frames : null,
-                        ...baseline,
-                        txid: got.txid,
-                        pages: got.frames.map((fr) => fr.pgno),
-                        error: got.error,
-                }
-        }
-        const mismatched = Object.keys(items).filter((k) => items[k].mismatch === true)
+export const windowRows = async (db, page, col, limit = WINDOW) =>
+        rowsOf(await db.sql(`SELECT _id, ${quote(col)} FROM ${quote(page)} ORDER BY _id LIMIT ?`, [limit]))
+
+export const valueAt = async (db, page, id, col) =>
+        rowsOf(await db.sql(`SELECT ${quote(col)} FROM ${quote(page)} WHERE _id = ?`, [id]))[0]?.[0]
+
+export const pickCell = async (db, page) => {
+        const cols = await userCols(db, page)
+        const [row] = rowsOf(await db.sql(`SELECT * FROM ${quote(page)} ORDER BY _id LIMIT 1`))
+        const all = await physicalOf(db, page)
+        const col = cols.find((c) => row[all.indexOf(c)] !== null && row[all.indexOf(c)] !== '') ?? cols[0]
+        return { id: row[all.indexOf('_id')], col, value: row[all.indexOf(col)] }
+}
+
+const _frames = async (db, op) => {
+        const before = await db.bytes()
+        const res = await guard(() => framesOf(db, () => db.act(op)))
+        const pages = changedOwners(before, await db.bytes())
+        return res.error ? { frames: null, error: res.error, pages } : { frames: res.value, pages }
+}
+
+const _cell = (page, id, col, value) => ({ kind: 'cells', page, cells: [{ row: id, col, value }] })
+
+export const measureEdit = async (ctx) => {
+        const db = ctx.sides.n.db
+        const page = ctx.page
+        const f = ctx.intake.tree.n.f
+        const cell = await pickCell(db, page)
+        const one = await _frames(db, _cell(page, cell.id, cell.col, bump(cell.value)))
+        const now = await valueAt(db, page, cell.id, cell.col)
+        const same = await _frames(db, _cell(page, cell.id, cell.col, String(now)))
+        const rowAdd = await _frames(db, { kind: 'row.add', page })
+        const colAdd = await _frames(db, { kind: 'col.add', page, name: 'bench_c', type: 'text' })
+        const rename = await _frames(db, { kind: 'col.set', page, name: 'bench_c', to: 'bench_r' })
+        const rows = await windowRows(db, page, cell.col)
+        const cells = rows.map(([id, v]) => ({ row: id, col: cell.col, value: bump(v) }))
+        const bulk = await _frames(db, { kind: 'cells', page, cells })
+        const isApplied = String(now) === bump(cell.value) || Number(now) === Number(bump(cell.value))
         return {
-                ok: Boolean(image) && Object.values(items).every((i) => i.error == null),
-                f,
-                f_baseline: fBase,
-                batch_limit: f > 0 ? Math.ceil(50 / f) + 3 : null,
-                batch_limit_baseline: fBase > 0 ? Math.ceil(50 / fBase) + 3 : null,
-                baseline_source: base.source,
-                frames_mismatch: mismatched,
-                items,
-                last_txid: since,
+                cell: { id: cell.id, col: cell.col, from: cell.value, to: now },
+                isApplied,
+                one,
+                same,
+                rowAdd,
+                colAdd,
+                rename,
+                bulk: { ...bulk, cells: cells.length, limit: Math.ceil(cells.length / f) + 3, f },
         }
 }
