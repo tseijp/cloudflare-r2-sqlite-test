@@ -1,8 +1,8 @@
 # table 設計
 
-出発点は数学的に正しい正規形であり、到達点はそこから「実際に投げる SQL が最も素直に書ける所」まで崩した形である。崩す理由は常にコスト (frame 数、page 数、object byte) で言える。
+正規化し切った形から出発し、実際に投げる SQL が 1 文で書ける所まで崩した形を採る。崩す根拠は「触る page の数」である。触る page が file 上で散らばるほど GET する chunk が増え、書き換える page が増えるほど delta が大きくなる。PUT の回数は table 設計では変わらない。
 
-## 1. 出発点: 正規化し切った形
+## 1. 出発点 (正規形)
 
 ```mermaid
 erDiagram
@@ -10,127 +10,82 @@ erDiagram
     PAGE ||--o{ ROW : has
     ROW ||--o{ CELL : has
     COLUMN ||--o{ CELL : has
-    CELL ||--o{ MARK : "文字区間"
-    CELL ||--o{ CELL_STYLE : "cell 属性"
-    COLUMN ||--o{ OPTION : "選択肢"
-    PAGE ||--o{ SECTION : layout
-    SECTION ||--o{ ITEM : layout
-    ITEM ||--o{ CHILD : "縦並び"
-    ITEM }o--o| COLUMN : "記入欄が列を指す"
-    PAGE { text id PK  text name  real pos  int trashed }
-    COLUMN { text id PK  text page FK  text name  text kind  int pos  int width }
-    ROW { int id PK  text page FK  real pos  int at  int up  int trashed  int pinned  text src }
-    CELL { int row PK  text column PK  text text }
-    MARK { int row PK  text column PK  int from PK  text attr PK  int to  text val }
-    CELL_STYLE { int row PK  text column PK  text prop PK  text val }
-    OPTION { text column PK  int pos PK  text label }
-    SECTION { text id PK  text page FK  int pos  text kind  text style }
-    ITEM { text id PK  text section FK  int pos  text kind  int start  int span  text column FK }
-    CHILD { text id PK  text item FK  int pos  text kind  int span }
+    CELL ||--o{ CELL_STYLE : "cell の装飾"
+    CELL ||--o{ MARK : "文字区間の装飾"
+    PAGE { int id PK  text name  int pos }
+    COLUMN { int id PK  int page FK  text name  int pos  int width }
+    ROW { int id PK  int page FK }
+    CELL { int row PK  int column PK  text text }
+    CELL_STYLE { int row PK  int column PK  text name PK  text value }
+    MARK { int row PK  int column PK  int start PK  text name PK  int stop  text value }
 ```
 
-どの table も鍵以外の属性が鍵の全体にだけ関数従属し (BCNF)、多値従属は OPTION と MARK と CELL_STYLE を分けたことで消え (4NF)、結合従属は自明なものしか残らない (5NF)。CELL は (row, column) → text、MARK は (row, column, from, attr) → (to, val)、CELL_STYLE は (row, column, prop) → val であり、重複する事実は 1 つも無い。
+全ての非 key 属性が key 全体にだけ従属し、同じ事実は 1 か所にしか無い。列の追加も削除も行の操作 (DML) で済み、外部 key の cascade で装飾の後始末ができる。
 
 ## 2. 実際に投げる SQL
 
-| 使い方                  | 正規形での形                                                      | 崩した形での形                                                                     | 頻度と cost                             |
-| ----------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
-| 窓を読む (w 行)         | CELL を row で絞り column で pivot (列数ぶんの CASE か self join) | `SELECT * FROM page_x WHERE _id BETWEEN ? AND ?`                                   | 最頻。leaf ceil(w ÷ f) 枚               |
-| cell を確定する         | `INSERT OR REPLACE INTO cell` 1 行                                | `UPDATE page_x SET "列" = ? WHERE _id = ?`                                         | 最頻。1 frame                           |
-| 行を足す                | ROW 1 行 + CELL 列数ぶん                                          | `INSERT INTO page_x` 1 行                                                          | 1 から 2 frame                          |
-| 行を消す                | ROW と CELL と MARK と CELL_STYLE を 4 文                         | `DELETE FROM page_x` と装飾 2 table の `DELETE … WHERE row = ?` を同じ transaction | 1 から 3 frame                          |
-| 列を足す                | COLUMN 1 行                                                       | `ALTER TABLE page_x ADD COLUMN`                                                    | 1 frame                                 |
-| 列名を変える            | COLUMN 1 行                                                       | `RENAME COLUMN` と装飾 2 table の `UPDATE … SET col = ? WHERE col = ?`             | 1 frame + 装飾件数 ÷ f                  |
-| 列を消す                | COLUMN 1 行 + CELL の該当 column 全削除                           | `_drop:` で始まる名前へ RENAME し、物理 DROP は full を送る save に相乗り          | 1 frame + 装飾件数 ÷ f (DROP は遅延)    |
-| 並べ替えて窓を読む      | pivot した上で ORDER BY                                           | `ORDER BY "列" IS NULL, "列" LIMIT ? OFFSET ?`                                     | 全走査 O(N)。index を作らない           |
-| 絞り込み / group / 検索 | pivot した上で WHERE / GROUP BY / LIKE                            | `WHERE "列" = ?` / `GROUP BY "列"` / `LIKE`                                        | 全走査 O(N)                             |
-| CSV を取り込む          | ROW と CELL を行 × 列 件                                          | `INSERT` 行数件を 1 transaction                                                    | O(N)、file 全 page                      |
-| 集計を表に描く          | pivot + 集計                                                      | `SELECT "x", SUM("y") … GROUP BY "x"`                                              | 全走査 O(N)                             |
-| 公開 form からの 1 行   | ROW + CELL                                                        | `INSERT INTO page_x (…, _src) VALUES (…, 'form')`                                  | 1 から 2 frame                          |
-| 窓の装飾を読む          | MARK と CELL_STYLE を row の範囲で                                | `WHERE page = ? AND row BETWEEN ? AND ?` を 2 文                                   | WITHOUT ROWID の範囲走査、0 から 1 page |
-| LLM の自由 SQL          | pivot を LLM が書く                                               | 列名がそのまま列なので 1 文                                                        | 全走査 O(N)、返答は LIMIT で窓以下      |
+| 使い方            | 正規形                                  | 採用形                                                                  |
+| ----------------- | --------------------------------------- | ----------------------------------------------------------------------- |
+| 窓を読む          | CELL を行の範囲で絞り、列の数だけ pivot | `select * from "page" where "_id" >= ? order by "_id" limit ?`          |
+| cell の確定       | CELL の upsert 1 行                     | `update "page" set "col" = ? where "_id" = ? and "col" is not ?`        |
+| 行の追加          | ROW 1 行 (CELL は無くてよい)            | `insert into "page" default values returning "_id"`                     |
+| 行の削除          | ROW の delete と cascade                | `delete from "page" …` と `_style` / `_mark` の delete を 1 transaction |
+| 列の追加          | COLUMN 1 行                             | `alter table "page" add column "col" text`                              |
+| 列名の変更        | COLUMN 1 行                             | `alter table … rename column …` と装飾の `col` の update                |
+| 列の削除          | COLUMN の delete と cascade             | `alter table … drop column …` と装飾の delete を 1 transaction          |
+| 取込              | ROW と CELL を行 × 列 件                | `insert into "page" (…) select value ->> 0, … from json_each(?)`        |
+| 集計 (LLM の SQL) | pivot してから集計                      | `select "col", count(*) from "page" group by "col"`                     |
+| 窓の装飾を読む    | STYLE / MARK を行の範囲で               | `… where "page" = ? and "row" in (窓の _id)`                            |
+| 列の一覧と幅      | COLUMN を page で                       | `pragma_table_info(?)` に `_style` の `row = 0` を left join            |
 
-正規形の痛みは 1 点に集中する。
-窓・並べ替え・集計・LLM の SQL が全て pivot を要し、SQL が列数に比例して長くなり、1 cell 1 行の table は typed 横持ちの 1.2 から 2.8 倍の page を占める。
-他方で正規形が得意な「列の追加と削除が DML で済む」利点は、ADD COLUMN が 1 frame であることと DROP を full の save に遅らせることで横持ちでも手に入る。
+正規形の難点は窓と集計に集まる。どちらも pivot が要り、SQL が列数に比例して長くなり、1 cell が 1 行になるので同じ窓が触る leaf が増える。正規形の利点である「列の操作が DML で済むこと」は、`ADD COLUMN` と `RENAME COLUMN` が schema の page だけを書くことで足りる。
 
-## 3. 到達点: 崩した形
+## 3. 到達点 (採用形)
 
 ```mermaid
 erDiagram
-    IMAGE ||--o{ PAGE_X : "1 page 1 table"
-    PAGE_X ||--o{ COL : "既定から外れた列だけ"
-    PAGE_X ||--o{ STYLE : "同じ transaction で cascade"
-    PAGE_X ||--o{ MARK : "同じ transaction で cascade"
-    PAGE_X { int _id PK  any 利用者の列 }
-    COL { text page PK  text name PK  text type  int width  real pos  int hidden  text options }
-    STYLE { text page PK  int row PK  text col PK  text json }
-    MARK { text page PK  int row PK  text col PK  int from PK  text attr PK  int to  text val }
+    PAGE_TABLE ||--o{ STYLE : "(page, row, col)"
+    PAGE_TABLE ||--o{ MARK : "(page, row, col)"
+    PAGE_TABLE { int _id PK  text 利用者の列 }
+    STYLE { text page PK  int row PK  text col PK  text name PK  text value }
+    MARK { text page PK  int row PK  text col PK  int start PK  text name PK  int stop  text value }
 ```
 
-PAGE は page table そのもので、page 名が table 名、並びは sqlite_master の作成順である。
-COLUMN の存在と並びは物理 schema (`pragma_table_info`) が唯一の正であり、`_col` は既定 (物理型どおりの種類、幅 3、表示、選択肢無し) から外れた列の layout だけを持つ装飾 table である。
-こうすると列の追加と改名は物理 schema だけの変更で 1 frame に収まり、SQL で直接足された列もそのまま layout に現れ、layout と物理 schema が食い違う状態が作れない。
-SECTION、ITEM、CHILD は方眼紙の PoC には現れない。
+| 正規形の table | 採用形での居場所                                                                                   |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| PAGE           | SQLite の schema。page 名が table 名、並びは `sqlite_master` の rowid (作成順)                     |
+| COLUMN         | SQLite の schema。列の存在と並びは `pragma_table_info` だけが正。幅は `_style` の `row = 0` の行   |
+| ROW            | page table の行。`_id` (rowid) が行の識別子で、縦の位置でもある                                    |
+| CELL           | page table の列の値。型は TEXT だけ                                                                |
+| STYLE          | `_style`。`(page, row, col, name) → value`。cell に付き、本文が空になっても残る                    |
+| MARK           | `_mark`。`(page, row, col, start, name) → (stop, value)`。本文の区間に付き、本文と同じ文で書き直す |
 
-CELL は PAGE_X の列へ畳み込まれ、列名は利用者が付けた名前そのもの (日本語可、同名は `名前 (2)`) になる。
-OPTION は列の layout に選択肢の配列として入り、値は選択肢の文字列をそのまま TEXT で持つ (複数選択は区切り文字で結合)。
-辞書 table と整数 flag にしない理由は、1 列の値が 2 table にまたがる二重管理を避けることと、group by と LIKE が TEXT のままで同じ速さで効くことである。
+## 4. 崩し方ごとの根拠
 
-`_drop:` で始まる物理列は削除済みの列であり、layout にも窓にも現れず、full の save の直前に物理的に DROP される。
-`_col`、`_style`、`_mark` が、物理に無い列や行を指す件数は 0 が常態である。
+**列を物理の列にする。** 窓と集計が 1 文になり、行の全 cell が同じ leaf に載る。引き換えに `DROP COLUMN` が table 全体の書き直しになる。
 
-## 4. system 列
+**列の台帳を持たない。** 列の存在を別 table にも書くと、同じ事実が 2 か所になる。幅だけを `_style` に置き、行が無ければ既定の幅とする。`_style` に行があっても列が在ることにはならない。
 
-- `_id` は rowid そのもので、tree の key と装飾の row に使う
-- `_at` と `_up` は作成と更新の時刻で、作成日時と更新日時の記入欄は列を持たずこれを読む
-- `_pos` は利用者が手で並べ替えたときだけ使う実数で、既定の表示順は rowid 順である
-- `_src` は編集画面か公開 form かの出所
-- `_trashed` と `_pinned` は 2 段階削除と固定
+**装飾の key を名前にする。** `(page 名, _id, 列名)` は schema と行からそのまま読める。引き換えに列名の変更が装飾の update を伴う。
 
-既定が rowid 順であるために窓の読みが `BETWEEN` の範囲走査になり、並べ替えを選んだときだけ O(N) になる。
+**外部 key を使わない。** page ごとに table が違うので参照先を書けない。行、列、page の削除は装飾の delete と同じ transaction に並べる。装飾の insert は `where exists (その行) and exists (その列)` を付けた `insert … select` にして、無い位置には書けないようにする。
 
-利用者の列は NULL を許し、NULL を空とみなす。
-NULL は 0 byte、空文字列は 1 byte で、並べ替えは `IS NULL` を先に置いて空を末尾に送る。
+**page table に index を作らない。** index は行の追加で書く page を増やし、`DROP COLUMN` を拒む。窓は rowid の範囲読みなので index は要らない。並べ替えと絞り込みは全走査になる。
 
-## 5. 装飾
+**`_id` を縦の位置にする。** `count(*)` も `offset` も leaf を端から読む。`max("_id")` と `"_id" >= ?` は木の深さぶんの page で済む。行を消すと番号が欠けるので、窓は「`_id >= top` の先頭 n 行」で読む。
 
-MARK は文字区間 (from, to) に付き、本文の確定と同じ transaction で該当 cell の MARK を delete してから insert し直す。
-本文が先頭に 1 文字増えても MARK は自動で動かないので、位置の正は常に editor の確定時の再書き込みである。
-CELL_STYLE は (page, row, col) に付き、本文が空になっても残り、行が並べ替えで動いても row id に付いているので一緒に動く。
-行の削除と列の削除で該当行を同じ transaction で消すことで孤児を 0 に保ち、table 名が page ごとに変わるため外部 key の cascade は使わず adapter の transaction で行う。
-孤児は `row NOT IN (SELECT _id FROM page_x)` または `col` が物理列に無いものを数えて検出する。
+## 5. 孤児の検査
 
-どちらの table も WITHOUT ROWID で鍵順に並ぶので、窓の読みは (page, row) の範囲走査で済み、列削除の cascade は col 一致の delete で件数 ÷ f の frame になる。
+装飾が指す位置が無い行を孤児と呼ぶ。0 件が常態である。
 
-## 6. 宣言から DDL への写像
+```sql
+select count(*) from "_style" s where s."page" = ? and (
+        (s."row" > 0 and s."row" not in (select "_id" from "<page>"))
+        or s."col" not in (select "name" from pragma_table_info(?)))
+```
 
-page の既定の列は宣言 1 つで layout の記入欄と DDL と既定値を同時に決める。
-宣言は型と既定値と optional を持つ schema (zod) で書き、JSON Schema へ落とせる範囲 (default、description、enum、integer、format date / date-time、任意の meta) だけを使う。
+page そのものが無い装飾は `s."page" not in (select "name" from "sqlite_master" where "type" = 'table')` で数える。`_mark` も同じ形である。
 
-| 宣言                   | 列の型    | 値の形                | 方眼紙での種類                                           |
-| ---------------------- | --------- | --------------------- | -------------------------------------------------------- |
-| string                 | TEXT      | 本文                  | 文字列 / ラジオ / ドロップダウン / リンク / ルックアップ |
-| enum                   | TEXT      | 選択肢の文字列        | ラジオ / ドロップダウン (選択肢は layout)                |
-| number                 | REAL      | 数値                  | 数値 / 金額 / パーセント                                 |
-| number.int             | INTEGER   | 整数                  | 件数                                                     |
-| boolean                | INTEGER   | 0 / 1 (0 byte)        | チェックボックス                                         |
-| string date / datetime | TEXT      | ISO 8601 の 1 書式    | 日付 / 日時 / 時刻                                       |
-| array / object         | TEXT      | 区切り結合または JSON | 複数選択 / テーブル                                      |
-| default(v)             | DEFAULT v |                       |                                                          |
-| optional 無し          | NOT NULL  |                       |                                                          |
+## 6. 採っていないもの
 
-利用者が後から足す列も同じ写像で runtime に DDL になる。
-宣言の無い page は system 列だけの table になる。
-
-## 7. 変更の階級と方針
-
-| 変更       | 物理操作                                    | frame                 | 方針                         |
-| ---------- | ------------------------------------------- | --------------------- | ---------------------------- |
-| 列の追加   | ADD COLUMN                                  | 1                     | 操作のたびに即時             |
-| 列名の変更 | RENAME COLUMN + 装飾の col 更新             | 1 + 装飾件数 ÷ f      | 即時、同じ transaction       |
-| 列の削除   | `_drop:` へ RENAME → full の save で DROP   | 1 → full に相乗り     | 遅延                         |
-| 種類の変更 | 物理型は変えず `_col` の type だけ変える    | 1                     | 数値の並べ替えは CAST で行う |
-| 型の変更   | table 再作成                                | file の 2 倍          | 行わない                     |
-
-列幅と並び順と選択肢は `_col` の 1 行の upsert であり、1 frame を生む。
+列の型 (数値、日付、選択肢)、選択肢の辞書、行の並べ替え位置、layout (section と item) は無い。足すときの置き場は、列の属性なら `_style` の `row = 0`、行に依らない設定なら新しい system table (`_` で始まる名前) である。

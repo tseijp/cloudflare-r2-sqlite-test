@@ -1,100 +1,213 @@
-# 製品の公開面
+# 公開面
 
-runner が製品に触れてよいのはこの文書に書いた面だけである。`src/` の file を読んだり、内部の関数を import したりしない。
-面に無い振る舞いは測らず、面に書かれた振る舞いが崩れていれば、それを点数または gate に写す。
+検証 code が製品に触れてよい面はこの文書だけである。`src/` の file は読まない。ここに無い振る舞いは測らない。
 
 ## 1. 入口
 
-入口は `src/server/db/index.ts` の `openDb(input)` 1 本である。
+| package      | 入口 file                     | export                                             |
+| ------------ | ----------------------------- | -------------------------------------------------- |
+| `@db/server` | `src/server/db/src/index.ts`  | `createDb(input)` と型 `Input / Op / Code / Stat / Store / Part` |
+| `@db/client` | `src/client/db/src/index.tsx` | `createGrid(input)` と型 `Input / Event / Code / Snap / State`   |
 
-node 24 で読み込むときは、拡張子の無い相対 import を `.ts`、`.tsx`、`/index.ts` の順に解決する hook を登録する。
+package 名から file への対応は `src/**/package.json` の `name` と `exports` で決まる。`packages.mjs` の `scanPackages()` が全 package の `{ name, dir, entry, deps }` を返し、root の `tsconfig.json` の `paths` も同じ対応を持つ。package 内の相対 import は拡張子 `.ts` / `.tsx` 付きで書かれている。`node_modules/.bin` に `tsx` と `esbuild` がある。
 
-| input     | 型                   | 意味                                                                     |
-| --------- | -------------------- | ------------------------------------------------------------------------ |
-| `storage` | 3 節の Storage       | object storage。無ければ複製をしない                                     |
-| `doc`     | `Y.Doc`              | 窓を書き込む doc。無ければ製品が内部で作る。wire を測るときに渡す       |
-| `prefix`  | string               | object の key の前置き。1 file = 1 prefix                                |
+## 2. `createDb({ wasm, store, doc })`
 
-同じ `storage` と `prefix` で `openDb` をもう一度呼ぶと、最後に `save` した状態が開く。開いた時点では page をほとんど読まず、SQL が page を必要としたときに range GET で取り寄せる。任意の時点への復元は面に無い。
+| 引数    | 型                   | 渡すもの                                                                 |
+| ------- | -------------------- | ------------------------------------------------------------------------ |
+| `wasm`  | `WebAssembly.Module` | `node_modules/wa-sqlite/dist/wa-sqlite-async.wasm` を compile したもの   |
+| `store` | 3 節の `Store`       | object storage。1 つの `store` が 1 つの database                        |
+| `doc`   | `Y.Doc`              | 表示用の tree を書き込む doc                                             |
 
-## 2. db の facet
+返り値は 4 つの関数である。
 
-| facet                | 引数 → 返り値                                                                  | 振る舞い                                                                                                                       |
-| -------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `load(sheets)`       | `{ name, rows: string[][] }[]` → page 名の配列                                 | 1 sheet = 1 page = 1 table、全体で 1 transaction。header の判定、型の推定、名前の一意化は製品が行う。容器の解読は runner が行う |
-| `act(op)`            | 4 節の Op → `{ id }`                                                           | 1 op = 1 transaction。`id` は row.add で行の `_id`、page.add で page 名                                                        |
-| `move(req)`          | 5 節の Req → void                                                              | 窓を入れ替える。SQL への書き込みはしない                                                                                       |
-| `undo()` / `redo()`  | → void                                                                         | 直前の act を戻す / やり直す。move は履歴に入らない                                                                            |
-| `sql(text, params?)` | → `{ cols, rows, changes }`                                                    | 任意の SQL。返る行は最大 50。PRAGMA も通る                                                                                     |
-| `schema()`           | → `{ page, rows, columns: { name, type, default, optional }[] }[]`             | page ごとの列と行数                                                                                                            |
-| `dump()`             | → plain object                                                                 | LLM が観測する面。6 節の tree をそのまま plain にしたもの                                                                     |
-| `save()`             | → `{ key, bytes, isFull, txid }` または null                                   | 前回の save から汚れた page を 1 回の put で送る。変化が無ければ null。`isFull` は全 page を送った回                            |
-| `bytes()`            | → `Uint8Array`                                                                 | sqlite file format の image 全体。遅延で開いた db では全 page を取り寄せてから返す                                             |
-| `txid()`             | → number                                                                       | 最後に送った object の番号                                                                                                     |
-| `pageSize`           | number                                                                         |                                                                                                                                |
-| `close()`            | → void                                                                         | memory を解放する                                                                                                              |
+| 関数               | 振る舞い                                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `run(op)`          | logical な命令 1 つを compile して実行する。Promise。呼び出しは 1 本の列に並び、前の命令が終わってから走る |
+| `compile(op, stat)` | logical な命令を physical な命令の配列に変える純関数。何も実行しない。不正な命令は例外を投げる             |
+| `execute(codes)`   | physical な命令の配列を上から順に実行する。Promise。`run` と同じ列に並ぶ                                   |
+| `stat()`           | 6 節の `Stat` を同期で返す                                                                                 |
 
-## 3. Storage
+`createDb` は何も読まない。最初に `run({ type: 'open' })` を呼ぶと store から読み込む。同じ `store` に対して新しい `createDb` を作り `open` すると、最後に成功した `save` の状態が開く。`save` していない変更は memory にしか無い。
 
-runner は数え役を兼ねた memory 実装を渡す。
+## 3. Store
 
-| method                            | 振る舞い                                                                   |
-| --------------------------------- | -------------------------------------------------------------------------- |
-| `put(key, bytes, { ifNoneMatch })` | `{ etag }` を返す。`ifNoneMatch` が真で key が既にあれば書かずに null      |
-| `get(key, range?)`                | `Uint8Array` を返す。range は `{ offset, length }` か `{ suffix }`。無い key は null |
-| `list(prefix)`                    | `{ key, size }[]`                                                          |
-| `delete(keys)`                    | 複数 key を 1 回で消す                                                     |
+```ts
+interface Store {
+        get(seq: number, offset?: number, length?: number): Promise<{ bytes: Uint8Array; tag: string } | null>
+        put(seq: number, bytes: Uint8Array, tag: string): Promise<string | null>
+        delete(seqs: number[]): Promise<unknown>
+}
+```
 
-R2 の料金は put、list、delete が 1 回ずつの class A、get が 1 回ずつの class B として数える。
+`seq` は database の中の object 番号で、0 が image、1 以上が delta である。key への写像は store の実装が決める。
 
-## 4. Op
+| method   | 契約                                                                                                                                                                   |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get`    | object が無ければ `null`。`offset` 省略は 0、`length` 省略は末尾まで。範囲が object の末尾を越えたら末尾で切る。`tag` はその object の版を表す文字列 (R2 の etag)      |
+| `put`    | 引数 `tag` は「今そこにあるはずの版」。空文字列は「object が無いこと」を表す。一致すれば書いて新しい `tag` を返し、一致しなければ何も書かずに `null` を返す (compare-and-swap) |
+| `delete` | 無い番号を含んでもよい                                                                                                                                                 |
 
-| kind         | 形                                                                                          |
-| ------------ | ------------------------------------------------------------------------------------------- |
-| `cells`      | `{ page, cells: { row, col, value?, marks? }[] }`。`row` は `_id`、`value` を省くと値はそのまま |
-| `style`      | `{ page, cells: { row, col, json }[] }`。`json` が null なら装飾を外す                      |
-| `row.add`    | `{ page, values? }`                                                                         |
-| `row.remove` | `{ page, rows: number[] }`                                                                  |
-| `col.add`    | `{ page, name, type, width? }`                                                              |
-| `col.set`    | `{ page, name, to?, type?, width?, hidden?, options?, pos? }`。`to` があれば改名            |
-| `col.remove` | `{ page, name }`                                                                            |
-| `page.add`   | `{ name, cols? }`                                                                           |
+製品が store を呼ぶ場面は次の 4 つだけである。
 
-`type` は `text`、`number`、`int`、`bool`、`date`、`datetime`、`json` のどれかである。`col` と `name` は列名、`page` は page 名である。
-`value` は文字列か数値か null で、列の種類に合わせて製品が正規化する。`marks` は `{ from, to, attr, val }[]` で本文の文字区間を指し、`val` は文字列である。style の `json` は JSON 文字列である。`pos` は列の並びの実数で、小さいほど左に来る。
+| 場面                 | 呼び出し                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `open`               | `get(0, 0, CHUNK × PAGE)` を 1 回。image が 2 chunk 以上のときだけ `get(1)`、`get(2)` … を `null` か鎖の切れ目まで |
+| SQL の page 読み     | memory に無い chunk ごとに `get(0, offset, length)` を 1 回                                                  |
+| `save` (push)        | `put(deltas + 1, bytes, '')` を 1 回                                                                         |
+| `save` (merge)       | image が 2 chunk 以上なら `get(0)` を 1 回、`put(0, bytes, image の tag)` を 1 回、delta があれば `delete([1..deltas])` を 1 回 |
 
-## 5. Req
+例外は 3 つある。`open` で鎖に繋がらない delta を見つけたときは、その番号から `SLOTS` までを `delete` で 1 回消す。`put` が reject した後の最初の `save` は、その番号を `get(seq, 0, 1)` で 1 回確かめ、store が変わっていなければ続行し、変わっていれば `store diverged` で reject し続ける (`open` し直すと store の内容で続行できる)。merge の `delete` が reject したときは、次の `put` の前にもう 1 回 `delete` する。
 
-`{ page, from, to, order?: { col, dir }, filter?: { col, value }, search?, view? }`。`view` は窓の持ち主で、省くと `main` になる。
+`put` が `null` を返したとき (別の writer が先に書いた) は `store conflict` で reject する。
 
-`from` と `to` は 1 始まりの表示位置である。order、filter、search が無いとき、表示位置は `_id` と同じになる。
+## 4. object の形
 
-## 6. tree
+整数は全て big-endian の u32。圧縮は gzip (`CompressionStream('gzip')`)。
 
-`doc.getMap('grid')` に次の key が並ぶ。
+```
+image (seq 0)
+┌────────┬───────┬─────────┬──────────────────┬───────────────────────────┐
+│ "SQLI" │ pages │ chunk 数 │ 圧縮後の長さ × n  │ gzip(chunk 0) gzip(chunk 1) … │
+└────────┴───────┴─────────┴──────────────────┴───────────────────────────┘
+chunk i は sqlite file の page (i × CHUNK + 1) から CHUNK 枚ぶん。最後の chunk は端数
 
-| key            | 値                                                                      | 区分 |
-| -------------- | ----------------------------------------------------------------------- | ---- |
-| `page/<name>`  | `{ name, pos, cols: { name, type, width, pos, hidden, options }[] }`    | 窓外 |
-| `rev`          | 確定した変更の版。commit が起きた act / undo / redo / load / sql のたびに増える | 窓外 |
-| `win/<view>`   | Req に `rows`(全行数)と `ids`(窓の `_id` を表示順に)を足したもの      | 窓   |
-| `row/<_id>`    | `Y.Array`。値の並びは page の `cols` と同じ。全 view の `ids` の和集合だけが載る | 窓   |
-| `deco/<_id>`   | `{ s?: { 列名: json }, m?: { 列名: Mark[] } }`                          | 窓   |
+delta (seq 1..) = gzip( 次の並び )
+┌────────┬────────┬───────┬────────┬─────┬──────────────────────┐
+│ "SQLD" │ commit │ count │ tag 長 │ tag │ (pgno, page) × count │
+└────────┴────────┴───────┴────────┴─────┴──────────────────────┘
+commit は適用後の page 数。tag は 1 つ前の object (delta 1 なら image) の tag
+```
 
-窓は view ごとに最大 8 つで、`move` だけが窓を作る。開いた直後は `win/main` が 1 つある。
-tree snapshot は、窓の区分(`win/`、`row/`、`deco/` で始まる key)を除いた key だけを新しい doc に写して測る。
+image の chunk を全て伸長して繋ぐと、page size 4096 の SQLite database file になる。delta は「その save で書き換わった page」の集合で、番号順に適用する。delta の `tag` が 1 つ前の object の今の tag と一致しない delta は鎖の外であり、適用されない。
 
-## 7. image の中
+## 5. logical な命令 (`Op`)
 
-`sql` で読んでよい table と規約は次のとおり。
+`{ type, ...field }` の plain object。表に無い field は捨てられる。
 
-| table         | 列                                                    | 意味                                     |
-| ------------- | ----------------------------------------------------- | ---------------------------------------- |
-| `<page 名>`   | `_id INTEGER PRIMARY KEY` と利用者の列(列名そのまま) | 1 page 1 table                           |
-| `_col`        | `page, name, type, width, pos, hidden, options`       | 既定から外れた列の layout                |
-| `_style`      | `page, row, col, json`                                | cell の装飾                              |
-| `_mark`       | `page, row, col, from, to, attr, val`                 | 文字区間の装飾                           |
+| type       | field                                                  | 意味                                                                                              |
+| ---------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `open`     |                                                        | store から開き直す。保存していない変更は捨てる。system table を用意し、`pages` の view を載せる   |
+| `save`     |                                                        | 前回の save から変わった page を保存する。変化が無ければ store を呼ばない                         |
+| `page.add` | `page`                                                 | page (= table) を作る                                                                             |
+| `page.del` | `page`                                                 | table と、その page の装飾を同じ transaction で消す                                               |
+| `row.add`  | `page`                                                 | 末尾に空の行を足す。返り値は `[[_id]]`                                                            |
+| `row.del`  | `page, row`                                            | 行と、その行の装飾を同じ transaction で消す                                                       |
+| `col.add`  | `page, col`                                            | TEXT の列を右端に足す                                                                             |
+| `col.del`  | `page, col`                                            | 列と、その列の装飾を同じ transaction で消す                                                       |
+| `col.name` | `page, col, name`                                      | 列名を変え、装飾の列名も同じ transaction で変える                                                 |
+| `cell`     | `id, page, row, col, text, marks`                      | cell の本文と文字区間の装飾を置き換える。`text` は文字列か null。同じ本文なら本文の page を書かない |
+| `style`    | `id, page, row, col, name, value`                      | cell の装飾 1 項目。`value` が null なら外す。`row` が 0 なら列見出し (`name: 'width'` が列幅)    |
+| `window`   | `id, page, top, size`                                  | `id` の表示範囲を「`_id >= top` の先頭 `size` 行」にする。SQL へは書かない                        |
+| `import`   | `page, names, rows`                                    | page が無ければ `names` の列で作り、`rows` (文字列か null の配列の配列) を末尾に足す。1 transaction |
+| `undo`     | `id`                                                   | `id` が行った直前の `cell` / `style` を戻す                                                       |
+| `redo`     | `id`                                                   | 戻したものをやり直す                                                                              |
+| `sql`      | `text`                                                 | 読み取り専用で実行する。返り値は `[列名の配列, ...行]` で、行は `ROWS` まで                       |
+| `leave`    | `id`                                                   | `id` の view を消す                                                                               |
 
-削除した列は `_drop:` で始まる名前へ改名されて残り、全 page を送る save の直前に物理的に削除される。孤児とは、`_style` と `_mark` の行のうち、page table に無い `_id`、または `_drop:` を除いた物理列に無い `col` を指すものである。
+field の制約。`page` / `col` / `name` は 1 〜 64 文字で、`_` と `sqlite_` で始まらず、`rowid` / `oid` でなく、制御文字を含まない。`id` と装飾の `name` は `[A-Za-z0-9_-]{1,32}`。`row` と `top` は 0 以上の整数、`size` は 1 〜 200。`marks` は `[start, stop, name, value]` の配列で、`stop` は本文の長さに切り詰められ、空になった区間は捨てられる。`row.del` / `col.del` / `col.name` / `page.del` は全員の undo 履歴を捨てる。
 
-image は WAL mode(exclusive locking)で開かれている。1 操作の frame 数は、`sql('PRAGMA wal_checkpoint(TRUNCATE)')` → 操作 → `sql('PRAGMA wal_checkpoint(PASSIVE)')` の返りの 2 列目である。`dbstat` は使えない。f(leaf 1 枚の行数)と木の深さは、`bytes()` の page を sqlite file format に従って読んで求める。
+## 6. `Stat`
+
+| field    | 意味                                                |
+| -------- | --------------------------------------------------- |
+| `pages`  | 今の database の page 数                            |
+| `base`   | store にある image の page 数 (無ければ 0)          |
+| `dirty`  | 前回の save から書き換わった page 数                |
+| `deltas` | store にある有効な delta の数                       |
+| `patch`  | delta に入っている page 数の合計                    |
+
+`save` の compile は `stat` だけから決まる。`dirty = 0` なら `[]`。`base <= CHUNK`、`patch + dirty >= CHUNK`、`deltas × (deltas + 1) ÷ 2 >= 1 + 2 × pages ÷ SWAP` のどれかなら `[['merge']]`。それ以外は `[['push']]`。
+
+## 7. physical な命令 (`Code`)
+
+`[code, ...operand]` の配列。operand は文字列、数値、配列だけである。
+
+| code      | operand                    | 装置             | 動作                                                                                   |
+| --------- | -------------------------- | ---------------- | -------------------------------------------------------------------------------------- |
+| `pull`    |                            | store → page 層  | image の先頭と delta の鎖を読み、page 層を置き換える                                   |
+| `open`    |                            | sqlite           | 接続を開き直す                                                                         |
+| `sql`     | `text, params`             | sqlite           | 文を実行し、行の配列を返す                                                             |
+| `read`    | `text, limit`              | sqlite           | 読み取りしか許さない状態で実行し、`[列名, ...行]` を返す                               |
+| `view`    | `name, text, params, tags` | sqlite → tree    | 問い合わせを登録し、結果を tree に載せる                                               |
+| `refresh` |                            | sqlite → tree    | 登録済みの問い合わせを全て実行し直し、変わった行だけ tree に書く                       |
+| `drop`    | `tag`                      | tree             | その tag を持つ問い合わせの登録と結果を消す                                            |
+| `fill`    | `key, text, params`        | sqlite → tree    | 編集 key が無ければ、問い合わせの結果を JSON にして置く (変更前の値)                   |
+| `set`     | `key, value, origin`       | tree             | 編集 key を書く。`origin` ごとの履歴に積まれる                                         |
+| `undo`    | `origin`                   | tree             | その `origin` の履歴を 1 つ戻す                                                        |
+| `redo`    | `origin`                   | tree             | 1 つやり直す                                                                           |
+| `forget`  |                            | tree             | 編集 key と全員の履歴を消す                                                            |
+| `push`    |                            | page 層 → store  | 汚れた page を delta 1 つにして put する                                               |
+| `merge`   |                            | page 層 → store  | 全 page を image 1 つにして put し、delta を消す                                       |
+
+命令の配列の途中で失敗すると、開いている transaction は rollback され、`run` / `execute` は reject する。
+
+## 8. tree
+
+`doc.getMap('view')` の key は `<view 名>/<0 始まりの連番>`、値は問い合わせ結果の 1 行 (配列)。
+
+| view 名       | 1 行の形                               | 登録する命令 |
+| ------------- | -------------------------------------- | ------------ |
+| `pages`       | `[page 名]` (作成順)                   | `open`       |
+| `<id>/cols`   | `[列名, 幅]` (幅は文字列。既定 `'4'`)  | `window`     |
+| `<id>/rows`   | `[_id, 列 1 の本文, 列 2 の本文, …]`   | `window`     |
+| `<id>/styles` | `[row, col, name, value]`              | `window`     |
+| `<id>/marks`  | `[row, col, start, stop, name, value]` | `window`     |
+| `<id>/last`   | `[最大の _id]` (行が無ければ null)     | `window`     |
+
+`doc.getMap('edit')` は undo のための map で、key は `JSON.stringify(['cell', page, row, col])` か `JSON.stringify(['style', page, row, col, name])`、値は JSON 文字列である。
+
+## 9. image の中の table
+
+| table       | 列                                                  | 主キー                          |
+| ----------- | --------------------------------------------------- | ------------------------------- |
+| `<page 名>` | `_id INTEGER PRIMARY KEY` と利用者の列 (全て TEXT)  | `_id`                           |
+| `_style`    | `page, row, col, name, value`                       | `(page, row, col, name)`        |
+| `_mark`     | `page, row, col, start, name, stop, value`          | `(page, row, col, start, name)` |
+
+`_style` と `_mark` は `WITHOUT ROWID`。`row` は page table の `_id`、`col` は列名である。`row = 0` は列見出しを指す。
+
+## 10. 定数
+
+| 名前    | 値   | 意味                                                         |
+| ------- | ---- | ------------------------------------------------------------ |
+| `PAGE`  | 4096 | page size (byte)                                             |
+| `CHUNK` | 512  | image の 1 chunk の page 数。range GET の単位                 |
+| `ROOM`  | 4    | memory に置く chunk の数                                     |
+| `LIMIT` | 8192 | database の page 数の上限 (`max_page_count`)                 |
+| `SWAP`  | 2048 | GET 1 回と同じ費用とみなす page 数                           |
+| `SLOTS` | 8    | delta の番号の上限                                           |
+| `ROWS`  | 100  | `sql` が返す行数の上限                                       |
+
+## 11. `createGrid({ doc, id, send })`
+
+`send(op)` は 5 節の `Op` を server に届けて返り値を返す関数、`id` は client の識別子である。返り値は `{ Grid, dispatch, compile }`。
+
+| 関数                   | 振る舞い                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `compile(event, snap)` | 利用者の操作 1 つを physical な命令の配列に変える純関数                      |
+| `dispatch(event)`      | compile して実行する。命令が 1 つ以上あれば true                             |
+| `Grid`                 | react component。`doc` の `view` と局所状態を描く                            |
+
+physical な命令は 2 種で、`['state', patch]` は局所状態 (`page, top, sel, edit, result, note`) を書き換え、`['send', op, key?]` は `send(op)` を呼ぶ (`key` があれば返り値を局所状態のその key に置く)。
+
+| event (`type`) | field                        | 命令                                                                 |
+| -------------- | ---------------------------- | -------------------------------------------------------------------- |
+| `key`          | `key, shift, meta, composing` | 矢印 / Tab / Enter / F2 / Escape / Delete / 文字 / Mod+Z / Mod+Y を下の操作に読み替える |
+| `wheel`        | `dy`                         | `scroll` (3 行)                                                      |
+| `file`         | `name, text`                 | CSV を読み、`load`                                                   |
+| `pick`         | `slot, index`                | 選択。`slot` は窓の中の行位置 (-1 が列名の行)、`index` は列位置      |
+| `edit`         | `text?`                      | 編集の開始                                                           |
+| `type`         | `text, start, stop`          | 編集中の文字列と選択範囲                                             |
+| `commit`       | `dx, dy`                     | 確定。変化があれば `cell` か `col.name` を send                      |
+| `cancel`       |                              | 編集の破棄                                                           |
+| `move`         | `dx, dy`                     | 選択の移動。窓の端では `scroll`                                      |
+| `scroll`       | `dy`                         | `top` を動かして `window` を send                                    |
+| `page`         | `page`                       | page を切り替えて `window` を send                                   |
+| `add`          | `kind` (`page / row / col`)  | `page.add` / `row.add` / `col.add` を send                           |
+| `remove`       | `kind`                       | `page.del` / `row.del` / `col.del` を send                           |
+| `resize`       | `index, width`               | `style` (`row: 0, name: 'width'`) を send。幅は 1 〜 12              |
+| `fill`         | `value`                      | `style` (`name: 'fill'`) を send                                     |
+| `bold`         |                              | 編集中は選択範囲、そうでなければ cell 全体の `bold` を付け外す       |
+| `load`         | `name, names, rows`          | `import` を `BATCH` (2000) 行ずつ send                               |
+| `undo` `redo` `save` `open` `sql` |           | 同名の `Op` を send                                                  |
