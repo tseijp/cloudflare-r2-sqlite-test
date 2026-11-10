@@ -1,0 +1,12 @@
+{
+        "name": "@db/client-executer",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/client-share": "workspace:*",
+                "@db/client-executer-state": "workspace:*",
+                "@db/client-executer-wire": "workspace:*",
+                "@db/client-executer-dom": "workspace:*"
+        }
+}

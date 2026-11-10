@@ -1,10 +1,4 @@
-declare module '*.wasm?module' {
+declare module 'wa-sqlite/dist/wa-sqlite-async.wasm' {
         const wasm: WebAssembly.Module
         export default wasm
-}
-
-declare namespace Cloudflare {
-        interface Env {
-                r2: R2Bucket
-        }
 }

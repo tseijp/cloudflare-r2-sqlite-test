@@ -1,0 +1,50 @@
+{
+        "extends": "../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@db/client-share": [
+                                "./packages/share/src/index.ts"
+                        ],
+                        "@db/client-compiler": [
+                                "./packages/compiler/src/index.ts"
+                        ],
+                        "@db/client-compiler-parse": [
+                                "./packages/compiler/packages/declarative/parse/src/index.ts"
+                        ],
+                        "@db/client-compiler-parse-csv": [
+                                "./packages/compiler/packages/declarative/parse/packages/procedural/csv/src/index.ts"
+                        ],
+                        "@db/client-compiler-plan": [
+                                "./packages/compiler/packages/declarative/plan/src/index.ts"
+                        ],
+                        "@db/client-compiler-plan-cursor": [
+                                "./packages/compiler/packages/declarative/plan/packages/procedural/cursor/src/index.ts"
+                        ],
+                        "@db/client-compiler-plan-name": [
+                                "./packages/compiler/packages/declarative/plan/packages/procedural/name/src/index.ts"
+                        ],
+                        "@db/client-executer": [
+                                "./packages/executer/src/index.ts"
+                        ],
+                        "@db/client-executer-state": [
+                                "./packages/executer/packages/declarative/state/src/index.ts"
+                        ],
+                        "@db/client-executer-wire": [
+                                "./packages/executer/packages/declarative/wire/src/index.ts"
+                        ],
+                        "@db/client-executer-dom": [
+                                "./packages/executer/packages/declarative/dom/src/index.tsx"
+                        ],
+                        "@db/client-executer-dom-event": [
+                                "./packages/executer/packages/declarative/dom/packages/procedural/event/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

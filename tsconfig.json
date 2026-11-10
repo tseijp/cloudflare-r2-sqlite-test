@@ -7,9 +7,115 @@
                 "noEmit": true,
                 "strict": true,
                 "skipLibCheck": true,
-                "lib": ["ESNext", "DOM"],
-                "types": ["vite/client", "./worker-configuration.d.ts"],
+                "lib": [
+                        "ESNext",
+                        "DOM"
+                ],
+                "types": [
+                        "vite/client",
+                        "./worker-configuration.d.ts"
+                ],
                 "jsx": "react-jsx",
-                "jsxImportSource": "react"
-        }
+                "jsxImportSource": "react",
+                "allowJs": true,
+                "paths": {
+                        "@db/client": [
+                                "./src/client/db/src/index.tsx"
+                        ],
+                        "@db/client-share": [
+                                "./src/client/db/packages/share/src/index.ts"
+                        ],
+                        "@db/client-compiler": [
+                                "./src/client/db/packages/compiler/src/index.ts"
+                        ],
+                        "@db/client-compiler-parse": [
+                                "./src/client/db/packages/compiler/packages/declarative/parse/src/index.ts"
+                        ],
+                        "@db/client-compiler-parse-csv": [
+                                "./src/client/db/packages/compiler/packages/declarative/parse/packages/procedural/csv/src/index.ts"
+                        ],
+                        "@db/client-compiler-plan": [
+                                "./src/client/db/packages/compiler/packages/declarative/plan/src/index.ts"
+                        ],
+                        "@db/client-compiler-plan-cursor": [
+                                "./src/client/db/packages/compiler/packages/declarative/plan/packages/procedural/cursor/src/index.ts"
+                        ],
+                        "@db/client-compiler-plan-name": [
+                                "./src/client/db/packages/compiler/packages/declarative/plan/packages/procedural/name/src/index.ts"
+                        ],
+                        "@db/client-executer": [
+                                "./src/client/db/packages/executer/src/index.ts"
+                        ],
+                        "@db/client-executer-state": [
+                                "./src/client/db/packages/executer/packages/declarative/state/src/index.ts"
+                        ],
+                        "@db/client-executer-wire": [
+                                "./src/client/db/packages/executer/packages/declarative/wire/src/index.ts"
+                        ],
+                        "@db/client-executer-dom": [
+                                "./src/client/db/packages/executer/packages/declarative/dom/src/index.tsx"
+                        ],
+                        "@db/client-executer-dom-event": [
+                                "./src/client/db/packages/executer/packages/declarative/dom/packages/procedural/event/src/index.ts"
+                        ],
+                        "@db/server": [
+                                "./src/server/db/src/index.ts"
+                        ],
+                        "@db/server-share": [
+                                "./src/server/db/packages/share/src/index.ts"
+                        ],
+                        "@db/server-compiler": [
+                                "./src/server/db/packages/compiler/src/index.ts"
+                        ],
+                        "@db/server-compiler-parse": [
+                                "./src/server/db/packages/compiler/packages/declarative/parse/src/index.ts"
+                        ],
+                        "@db/server-compiler-share": [
+                                "./src/server/db/packages/compiler/packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/server-compiler-parse-check": [
+                                "./src/server/db/packages/compiler/packages/declarative/parse/packages/procedural/check/src/index.ts"
+                        ],
+                        "@db/server-compiler-plan": [
+                                "./src/server/db/packages/compiler/packages/declarative/plan/src/index.ts"
+                        ],
+                        "@db/server-compiler-plan-sync": [
+                                "./src/server/db/packages/compiler/packages/declarative/plan/packages/declarative/sync/src/index.ts"
+                        ],
+                        "@db/server-compiler-plan-share": [
+                                "./src/server/db/packages/compiler/packages/declarative/plan/packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/server-compiler-plan-table": [
+                                "./src/server/db/packages/compiler/packages/declarative/plan/packages/declarative/table/src/index.ts"
+                        ],
+                        "@db/server-compiler-plan-row": [
+                                "./src/server/db/packages/compiler/packages/declarative/plan/packages/declarative/row/src/index.ts"
+                        ],
+                        "@db/server-compiler-plan-view": [
+                                "./src/server/db/packages/compiler/packages/declarative/plan/packages/declarative/view/src/index.ts"
+                        ],
+                        "@db/server-executer": [
+                                "./src/server/db/packages/executer/src/index.ts"
+                        ],
+                        "@db/server-executer-sqlite": [
+                                "./src/server/db/packages/executer/packages/declarative/sqlite/src/index.ts"
+                        ],
+                        "@db/server-executer-page": [
+                                "./src/server/db/packages/executer/packages/declarative/page/src/index.ts"
+                        ],
+                        "@db/server-executer-store": [
+                                "./src/server/db/packages/executer/packages/declarative/store/src/index.ts"
+                        ],
+                        "@db/server-executer-store-codec": [
+                                "./src/server/db/packages/executer/packages/declarative/store/packages/procedural/codec/src/index.ts"
+                        ],
+                        "@db/server-executer-tree": [
+                                "./src/server/db/packages/executer/packages/declarative/tree/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src/*.ts",
+                "src/*.tsx"
+        ]
 }

@@ -1,0 +1,11 @@
+{
+        "name": "@db/client-compiler-plan",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/client-share": "workspace:*",
+                "@db/client-compiler-plan-cursor": "workspace:*",
+                "@db/client-compiler-plan-name": "workspace:*"
+        }
+}

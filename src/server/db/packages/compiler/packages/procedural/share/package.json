@@ -1,0 +1,9 @@
+{
+        "name": "@db/server-compiler-share",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/server-share": "workspace:*"
+        }
+}

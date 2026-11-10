@@ -1,0 +1,29 @@
+{
+        "extends": "../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@db/client-share": [
+                                "../share/src/index.ts"
+                        ],
+                        "@db/client-executer-state": [
+                                "./packages/declarative/state/src/index.ts"
+                        ],
+                        "@db/client-executer-wire": [
+                                "./packages/declarative/wire/src/index.ts"
+                        ],
+                        "@db/client-executer-dom": [
+                                "./packages/declarative/dom/src/index.tsx"
+                        ],
+                        "@db/client-executer-dom-event": [
+                                "./packages/declarative/dom/packages/procedural/event/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

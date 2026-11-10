@@ -1,0 +1,13 @@
+{
+        "name": "@db/server-compiler-plan",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/server-share": "workspace:*",
+                "@db/server-compiler-plan-sync": "workspace:*",
+                "@db/server-compiler-plan-table": "workspace:*",
+                "@db/server-compiler-plan-row": "workspace:*",
+                "@db/server-compiler-plan-view": "workspace:*"
+        }
+}

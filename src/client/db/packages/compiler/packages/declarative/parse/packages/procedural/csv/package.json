@@ -1,0 +1,7 @@
+{
+        "name": "@db/client-compiler-parse-csv",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {}
+}

@@ -1,0 +1,11 @@
+{
+        "name": "@db/client",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.tsx",
+        "dependencies": {
+                "@db/client-share": "workspace:*",
+                "@db/client-compiler": "workspace:*",
+                "@db/client-executer": "workspace:*"
+        }
+}

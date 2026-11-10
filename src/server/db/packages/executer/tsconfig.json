@@ -1,0 +1,32 @@
+{
+        "extends": "../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@db/server-share": [
+                                "../share/src/index.ts"
+                        ],
+                        "@db/server-executer-sqlite": [
+                                "./packages/declarative/sqlite/src/index.ts"
+                        ],
+                        "@db/server-executer-page": [
+                                "./packages/declarative/page/src/index.ts"
+                        ],
+                        "@db/server-executer-store": [
+                                "./packages/declarative/store/src/index.ts"
+                        ],
+                        "@db/server-executer-store-codec": [
+                                "./packages/declarative/store/packages/procedural/codec/src/index.ts"
+                        ],
+                        "@db/server-executer-tree": [
+                                "./packages/declarative/tree/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}
