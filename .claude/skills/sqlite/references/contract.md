@@ -87,7 +87,7 @@ image の chunk を全て伸長して繋ぐと、page size 4096 の SQLite datab
 
 | type       | field                                                  | 意味                                                                                              |
 | ---------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `open`     |                                                        | store から開き直す。保存していない変更は捨てる。system table を用意し、`pages` の view を載せる   |
+| `open`     |                                                        | store から開き直す。保存していない変更は捨てる。system table を用意し、全 client の `window` の登録を消し、`pages` の view を載せ、undo 履歴を捨てる |
 | `save`     |                                                        | 前回の save から変わった page を保存する。変化が無ければ store を呼ばない                         |
 | `page.add` | `page`                                                 | page (= table) を作る                                                                             |
 | `page.del` | `page`                                                 | table と、その page の装飾を同じ transaction で消す                                               |

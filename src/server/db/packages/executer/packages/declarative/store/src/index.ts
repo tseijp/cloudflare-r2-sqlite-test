@@ -9,6 +9,8 @@ export const createStorage = (store: Store) => {
         let _sizes: number[] = []
         let _deltas = 0
         let _patch = 0
+        let _unsure = -1
+        let _stale: number[] = []
         const _fail = (text: string) => Promise.reject(new Error(text))
         const _at = (index: number) => _sizes.slice(0, index).reduce((sum, size) => sum + size, 12 + _sizes.length * 4)
         const _reset = (tag: string, pages: number, sizes: number[]) => {
@@ -16,6 +18,23 @@ export const createStorage = (store: Store) => {
                 _pages = pages
                 _sizes = sizes
                 _deltas = _patch = 0
+                _unsure = -1
+                _stale = []
+        }
+        const _sweep = async () => {
+                if (_stale.length) await store.delete(_stale)
+                _stale = []
+        }
+        const _put = async (seq: number, bytes: Uint8Array, tag: string) => {
+                const seen = _unsure < 0 ? null : await store.get(_unsure, 0, 1)
+                const isSame = _unsure < 0 || (seen?.tag ?? '') === (_unsure ? '' : _tag)
+                if (!isSame) return _fail('store diverged')
+                await _sweep()
+                _unsure = seq
+                const next = await store.put(seq, bytes, tag)
+                _unsure = -1
+                if (next === null) return _fail('store conflict')
+                return next
         }
         const chunk = async (index: number, head?: Uint8Array): Promise<Uint8Array> => {
                 const end = _at(index) + _sizes[index]
@@ -48,10 +67,8 @@ export const createStorage = (store: Store) => {
                         return part ? chunk(0, part.bytes) : null
                 },
                 async push(commit: number, pages: Delta['pages']) {
-                        const tag = await store.put(_deltas + 1, await encodeDelta({ prev: _tail, commit, pages }), '')
-                        if (tag === null) return _fail('delta conflict')
+                        _tail = await _put(_deltas + 1, await encodeDelta({ prev: _tail, commit, pages }), '')
                         _deltas += 1
-                        _tail = tag
                         _patch += pages.length
                 },
                 async merge(pages: number, compose: (index: number, base: Uint8Array | null) => Uint8Array) {
@@ -60,10 +77,9 @@ export const createStorage = (store: Store) => {
                         const parts: Uint8Array[] = []
                         if (old && old.tag !== _tag) return _fail('image changed')
                         for (let index = 0; index * CHUNK < pages; index++) parts.push(await pack(compose(index, old && index < _sizes.length ? await chunk(index, old.bytes) : null)))
-                        const tag = await store.put(0, encodeImage(pages, parts), _tag)
-                        if (tag === null) return _fail('image conflict')
-                        _reset(tag, pages, parts.map((part) => part.length))
-                        if (stale.length) await store.delete(stale)
+                        _reset(await _put(0, encodeImage(pages, parts), _tag), pages, parts.map((part) => part.length))
+                        _stale = stale
+                        await _sweep()
                 },
                 stat: () => ({ base: _pages, deltas: _deltas, patch: _patch }),
         }

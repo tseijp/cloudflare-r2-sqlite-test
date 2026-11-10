@@ -93,7 +93,7 @@ const _PLANS: Record<string, (event: Event, snap: Snap) => Code[]> = {
         undo: (_, snap) => [['send', { type: 'undo', id: snap.id }]],
         redo: (_, snap) => [['send', { type: 'redo', id: snap.id }]],
         save: () => [['send', { type: 'save' }]],
-        open: () => [['send', { type: 'open' }]],
+        open: () => [['send', { type: 'open' }], ['state', { page: '', ..._IDLE }]],
         sql: ({ text }) => [['send', { type: 'sql', text }, 'result']],
 }
 

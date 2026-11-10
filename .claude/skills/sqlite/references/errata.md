@@ -64,7 +64,8 @@ miniflare は R2 の模擬で、本物の R2 で確かめたものではない�
 | ------------------------------------------------------------------------------------------------------ | -------- |
 | `UndoManager` は `trackedOrigins` と `captureTimeout` を受け、`clear()` を持つ                          | 型定義   |
 | 既定では、他が上書きした map の key を undo で戻さない (`ignoreRemoteMapChanges` の説明)               | 型定義   |
-| undo / redo の transaction の origin は UndoManager 自身である                                         | 未検証   |
+| undo / redo の transaction の origin は UndoManager 自身である                                         | source   |
+| 既定で戻さないのは、自分の履歴に無い書き込みが同じ key の後ろに続いているときである (`redoItem` の条件) | source   |
 
 ## 6. 先行案からの訂正
 

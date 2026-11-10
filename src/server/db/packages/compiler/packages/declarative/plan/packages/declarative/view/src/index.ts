@@ -5,7 +5,7 @@ import type { Code, Op } from '@db/server-share'
 
 export const view = {
         window: ({ id: who, page, top, size }: Op): Code[] => {
-                const tags = [`id:${who}`, `page:${page}`]
+                const tags = ['window', `id:${who}`, `page:${page}`]
                 const ids = sql`(select "_id" from ${id(page)} where "_id" >= ${top} order by "_id" limit ${size})`
                 const cols = sql`select i."name", coalesce(s."value", ${WIDTH}) from pragma_table_info(${page}) i left join "_style" s on s."page" = ${page} and s."row" = 0 and s."col" = i."name" and s."name" = 'width' where i."cid" > 0 order by i."cid"`
                 const rows = sql`select * from ${id(page)} where "_id" >= ${top} order by "_id" limit ${size}`

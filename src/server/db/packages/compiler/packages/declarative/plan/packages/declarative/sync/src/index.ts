@@ -14,6 +14,7 @@ export const sync = {
                 run(sql`pragma max_page_count = ${sql.raw(String(LIMIT))}`),
                 run(create(style)),
                 run(create(mark)),
+                ['drop', 'window'],
                 ['view', 'pages', ...query(_PAGES), []],
                 ['refresh'],
                 ['forget'],
