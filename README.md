@@ -169,10 +169,10 @@ delta で送るか merge するかは費用の式で決定。delta を 1 つ持�
 
 ```mermaid
 erDiagram
-    PAGE_TABLE ||--o{ STYLE : "(page, row, col)"
+    PAGE_TABLE ||--o{ "STYLE" : "(page, row, col)"
     PAGE_TABLE ||--o{ MARK : "(page, row, col)"
     PAGE_TABLE { int _id PK  text 利用者の列 }
-    STYLE { text page PK  int row PK  text col PK  text name PK  text value }
+    "STYLE" { text page PK  int row PK  text col PK  text name PK  text value }
     MARK { text page PK  int row PK  text col PK  int start PK  text name PK  int stop  text value }
 ```
 
