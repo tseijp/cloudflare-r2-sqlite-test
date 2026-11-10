@@ -1,83 +1,127 @@
 ---
 name: sqlite
-description: 方眼紙型 spreadsheet を 1 file 1 sqlite image として object storage に置き、yjs を表示窓として同期し、WAL frame 単位で複製する PoC の不変条件と採点規約。実装・計測・審査のどの場面でも最初に読む
+description: 方眼紙型 spreadsheet の 1 file を 1 つの SQLite database として object storage (R2) に置き、Durable Object の中の wasm SQLite で読み書きし、表示範囲だけを yjs に載せる PoC の、不変条件・構成・費用の式・公開面。実装、検証、審査のどの作業でも最初に読む
 ---
 
 # sqlite
 
-この skill は「何を作るか」ではなく「何を守り、何で測られるか」を定める。
-製品の振る舞いはすべて `.bench/` の runner が出す点数に写り、点数は `references/score.md` の式でしか決まらない。
-点数を上げる以外の変更は仕事ではない。
+1 つの file は 1 つの SQLite database で、Durable Object が唯一の writer である。database の page は object storage に「image 1 つ + delta の鎖」として置かれ、SQL が必要とした部分だけが memory に来る。書き込みは logical な命令を compiler が physical な命令の列に変え、executer が上から実行する。
 
-## 1. 不変条件
+## 1. 用語
 
-### 1.1. 1 つの file は 1 つの sqlite image であり、行の値と装飾はその image だけが所有する
-
-yjs の tree は image の写しではなく窓であり、tree に載る行は表示中 page の表示範囲に限られ、tree の大きさは行数 N に依存しない。
-
-### 1.2. 書き込みの向きは常に操作 → SQL → tree の一方向である
-
-tree を直接書いて後から SQL へ流す経路を作った時点で、窓と image の不一致が生まれる。
-
-### 1.3. 1 回の操作は 1 つの transaction であり、1 cell の確定は leaf page 1 枚の frame に収まる
-
-同じ値を再確定したときに frame が生まれない性質 (SQLite は無変更の page を書かない) を壊してはならない。
-
-### 1.4. page table には永続 index を作らない
-
-index は追加 1 行の frame を 2 倍から 11 倍に増やし、DROP COLUMN を拒み、file を 1 割以上太らせる。
-並べ替えと絞り込みは全走査で行い、その所要時間は行数に比例するものとして受け入れる。
-
-### 1.5. 列の削除と行の削除は、装飾 table の該当行の削除と同じ transaction で行う
-
-孤児 (本体に無い位置を指す装飾) は 0 件が常態であり、1 件でも gate を落とす。
-
-### 1.6. 保存は image の丸ごとではなく WAL frame から取った汚れた page の単位で object storage へ送る
-
-1 回の save は 1 回の put で、送った byte 数は編集で汚れた page 数に比例し、file の大きさには比例しない。
-差分が溜まったら、その save だけ全 page を送り、古い object を 1 回の delete で消す。こうして object 数が save 回数に比例して増えないようにする。
-開き直した image は最後の save と整合 (integrity と行数と checksum) し、開くときは index を読んでから SQL が要求した page だけを range で取る。
-
-### 1.7. LLM が観測する面は窓と schema と SQL の返答だけであり、どれも行数 N に対して定数か対数で収まる
+| 言葉      | 意味                                                                                 | DBMS の言葉での位置づけ              |
+| --------- | ------------------------------------------------------------------------------------ | ------------------------------------ |
+| page      | SQLite の 4096 byte の固定長 block                                                   | pager が扱う単位                     |
+| page 層   | VFS として SQLite に file を見せる層。chunk の cache、保存前の page、汚れた page 番号 | buffer pool + dirty page table       |
+| chunk     | 連続する 512 page。image の圧縮と range GET の単位                                   | extent                               |
+| image     | 全 page を chunk ごとに gzip して並べた object (番号 0)                              | checkpoint 済みの database file      |
+| delta     | 1 回の save で書き換わった page の集合 (番号 1 〜)                                   | redo log の 1 segment (page image)   |
+| 鎖        | delta が 1 つ前の object の etag を持つことで決まる順序                              | log sequence の連続性                |
+| merge     | image と全 delta と汚れた page を 1 つの image に書き直すこと                        | checkpoint                           |
+| view      | 登録された問い合わせと、その結果を yjs に載せたもの                                  | materialized view                    |
+| logical な命令 | 利用者と LLM がしたいこと (`cell`、`row.add`、`window`、`save` …)               | SQL 文に当たる                       |
+| physical な命令 | 装置 1 つへの操作 (`sql`、`view`、`push`、`merge` …)                           | bytecode に当たる                    |
 
 ## 2. 構成
 
+```mermaid
+flowchart LR
+    subgraph browser
+        E[event] --> CC[client compiler<br>parse → plan]
+        CC -->|state / send| CE[client executer<br>state · wire · dom]
+    end
+    CE -->|Op| DB
+    subgraph DO[Durable Object]
+        DB[createDb<br>1 本の列] --> C[compiler<br>parse → plan]
+        C -->|Code の配列| X[executer]
+        X --> S[sqlite<br>wasm]
+        S -->|xRead / xWrite| P[page 層]
+        X --> T[tree<br>view · edit · undo]
+        X --> O[storage<br>image · delta の鎖]
+        P -.->|無い chunk| O
+    end
+    O -->|get / put / delete| R[(object storage)]
+    T -->|yjs| CE
 ```
- browser ──yjs (窓: layout + 表示範囲の行)──► Durable Object ──save: 汚れた page──► object storage
-    │                                           │  parse → plan → exec            ├─ <txid>.full (全 page)
-    │ gesture → act                             │  vfs → ship → view              ├─ <txid>.diff (汚れた page)
-    └───────────────────────────────────────────┘                                 └─ 末尾の page index を先に読む
- LLM ──MCP (窓 / schema / SQL)──────────────────┘
-```
 
-image は Durable Object の memory に 1 つだけ開かれる。起動時には最後の full と後続の diff の index だけを読み、page は SQL が要求したときに取り寄せる。
-保存は DO が明示的に呼ぶ save だけで行い、時間で常駐する仕組みは持たない。
-表示範囲が動いたときだけ SQL で範囲を読み直し、窓の入れ替えは編集の履歴に入れない。
+| package                          | 種類        | 中身                                                         |
+| -------------------------------- | ----------- | ------------------------------------------------------------ |
+| `@db/server`                     | declarative | compiler と executer を 1 本の列で繋ぐ                       |
+| `@db/server-compiler-parse`      | declarative | 命令ごとの field と検査の表                                  |
+| `@db/server-compiler-plan-*`     | declarative | 命令ごとの SQL と physical な命令の並び (sync / table / row / view) |
+| `@db/server-executer`            | declarative | physical な命令 14 種と装置の対応表                          |
+| `@db/server-executer-sqlite`     | declarative | wasm の接続、文の実行、読み取り専用の実行、rollback          |
+| `@db/server-executer-page`       | declarative | VFS、chunk の cache、保存前の page                           |
+| `@db/server-executer-store`      | declarative | image と delta の読み書き、鎖、compare-and-swap              |
+| `@db/server-executer-tree`       | declarative | view の登録と反映、編集 key、undo                            |
+| `*-share` `*-check` `*-codec` `*-csv` `*-name` `*-cursor` `*-event` | procedural | 状態を持たない関数 |
 
-## 3. 計測の流儀
+親は子の package を import でき、子は祖先の `share` だけを import できる。兄弟は import し合わない。境界は各 `package.json` の `dependencies` で、vite の plugin がそれ以外の import を拒む。
 
-絶対値ではなく同じ run の中の比で語る。
-1 cell の書き込みは「frame 数」、窓の読みは「page 数と、行数を 10 分の 1 にしたときとの比」、
-複製は「送った byte ÷ 汚れた page × page size」、image は「image byte ÷ 元 CSV byte」で表す。
-こうすると機械が変わっても点数が変わらず、設計の性質だけが数字に残る。
+## 3. 不変条件
 
-runner は `.bench/run.mjs` 1 本で、入力は `.bench/data/` の fixtures、出力は `.bench/out/` の台帳 1 行 (JSON) である。
-台帳には runner と `src/` の内容 hash を併記し、hash が一致しない台帳は無効とする。
-製品コードから runner を参照してはならず、runner は `references/contract.md` の面だけを叩き、`src/` を読まない。
+### 3.1. store の内容は、常に commit 済みの transaction の境目である
 
-## 4. 参照表
+命令の列は 1 本の列に並んで走り、失敗した列は rollback されるので、列の切れ目で page 層にあるのは commit 済みの page だけである。save はその切れ目でしか走らない。1 回の save は 1 回の put で、put は object 単位で全部か無かである。途中で落ちても、store には「前の save」か「今の save」のどちらかがある。
 
-| 場面                                              | 読む file                |
-| ------------------------------------------------- | ------------------------ |
-| 点数の式と gate、台帳の形                         | `references/score.md`    |
-| runner が製品に触れてよい面                       | `references/contract.md` |
-| fixtures の分類と取り込み契約                     | `references/fixtures.md` |
-| page / frame / 差分 object / yjs のコスト model   | `references/cost.md`     |
-| table 設計の正規化と崩し方、宣言から DDL への写像 | `references/tables.md`   |
-| 方眼紙の操作と窓、装飾の anchoring                | `references/grid.md`     |
-| 先行案の主張の検証結果                            | `references/errata.md`   |
+### 3.2. put は必ず compare-and-swap である
 
-## 5. 完了の定義
+image は「前に読んだ etag と同じなら」、delta は「まだ無ければ」で書く。条件が外れたら書かずに止まる。writer が 2 つになっても、後から書いた側が止まり、store は壊れない。
 
-「できました」は台帳の最新行が最新の `src/` hash を指し、全 gate が pass で、点数が前回を下回っていないときにだけ言える。
-それ以外の報告は進捗であり、未達の軸を数字で示す。
+### 3.3. delta は鎖に繋がっているときだけ有効である
+
+delta n は object n − 1 の etag を持つ。image を書き直すと etag が変わるので、古い delta は消し損ねても適用されない。open は鎖の切れ目で読むのを止め、切れた先を消す。
+
+### 3.4. delta があるのは image が 2 chunk 以上のときだけである
+
+1 chunk に収まる image は毎回 image ごと書く。このとき open は GET 1 回、save は PUT 1 回で、delta を探す GET も要らない。database の page 数は VACUUM しない限り減らないので、2 chunk 以上になった image が 1 chunk に戻ることは無い。
+
+### 3.5. 変化が無ければ store を呼ばない
+
+save の命令列は `stat` だけから決まり、汚れた page が 0 なら空になる。push か merge かも同じ式で決まる (cost.md 4 節)。
+
+### 3.6. SQL だけが正で、tree は写しである
+
+行と装飾を持つのは SQLite だけである。tree の view は、書き込みのたびに登録済みの問い合わせを実行し直して作る。tree を先に書いて後から SQL に流す経路は、undo の 1 本だけで、それも compiler を通る。
+
+### 3.7. 装飾は位置に付き、位置と一緒に消える
+
+行、列、page の削除と列名の変更は、装飾の delete / update と同じ transaction に並ぶ。装飾の insert は、その行とその列が在るときだけ行が入る文になっている。
+
+### 3.8. compiler は純関数で、executer は意味を知らない
+
+compiler は `(op, stat)` から命令列を返すだけで、何も読まず何も書かない。executer は命令を上から実行し、cell や列名の意味を知らない。命令列の途中で失敗したら、開いている transaction を rollback する。
+
+### 3.9. 利用者の文字列は SQL の文に入らない
+
+値は必ず bind する。名前は drizzle が識別子として囲み、その前に parse が `_` 始まり、`sqlite_` 始まり、`rowid`、制御文字を拒む。自由な SQL は authorizer が読み取り以外を拒む状態でしか実行しない。
+
+## 4. 壊れ方から見る場所
+
+| 見えたこと                                        | 最初に見る場所                                                                          |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| open し直すと変更が消えている                     | save が reject していないか。`store diverged` / `store conflict` は 3.2 が働いた結果    |
+| open が `image corrupt` / `delta corrupt` で止まる | object の先頭 4 byte (`SQLI` / `SQLD`)、gzip の伸長、delta の長さの式                    |
+| SQL が終わらない                                  | page 層の非同期の読みが reject していないか (errata.md 1 節の `handleAsync`)            |
+| `database disk image is malformed`                | image の chunk の並びと page 数、delta の適用順、`_kept` (base のうちまだ有効な page 数) |
+| GET が多い                                        | delta の数 (`stat().deltas`)、chunk の cache が溢れていないか、全走査の SQL             |
+| PUT が多い                                        | save を呼ぶ間隔。1 回の save が 2 回 put することは無い                                 |
+| 孤児がある                                        | 削除の命令列に装飾の delete が並んでいるか、装飾の insert の `where exists`             |
+| undo で値が戻らない                               | `fill` が `set` より前にあるか、他の client が後から同じ cell を書いていないか          |
+| view が古い                                       | 書き込みの命令列の最後に `refresh` があるか、view が登録されているか (`window`)         |
+
+## 5. 参照表
+
+| 知りたいこと                                   | file                     |
+| ---------------------------------------------- | ------------------------ |
+| 検証 code が触れてよい面、object の形、命令の表 | `references/contract.md` |
+| 費用の式と、そこから出た定数                   | `references/cost.md`     |
+| table の正規形と崩し方                         | `references/tables.md`   |
+| 方眼紙、窓、装飾の付き先、undo                 | `references/grid.md`     |
+| 外部の事実と確かめ方                           | `references/errata.md`   |
+| 検証に使うデータ                               | `references/fixtures.md` |
+| simulation の境界、軸、台帳                    | `references/score.md`    |
+
+## 6. 完了と言える条件
+
+台帳の最新の 1 件が今の `src/` に対するもので、崩れた判定が 0 件であるか、崩れた判定の全てに原因と再現手順が付いていること。点数だけの報告は進捗である。

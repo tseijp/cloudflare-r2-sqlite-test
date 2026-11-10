@@ -1,71 +1,68 @@
 # 方眼紙と窓
 
-## 1. 方眼紙の model
+## 1. 方眼紙
 
-方眼紙は横 35 マス (A から AI)、縦は行数ぶんの正方形の格子であり、1 page に table が 1 つだけ A1 を原点に置かれる。
-table が横に伸びるのは利用者が列を足したときだけで、列の幅はマス数の整数 (1 から 12) である。
-1 行目は列名の行、2 行目以降は 1 行 1 マスの高さの data 行で、行を足すと table が 1 マス下へ伸びる。
-table の外のマスは data も装飾も持たず、列幅の合計が 35 を超えたときは横 scroll で窓を動かす。
+紙は 1 マス 24px の正方形の格子で、横は 35 マス (A 〜 AI) から始まる。1 page に table が 1 つ、左上を原点に置かれる。
 
 ```
-      A  B  C  D  E  F  G  H  I  J  K  L  M  N  …  AI
-   1 [会社名        ][案件名        ][確度  ][受注日  ]      ← 列名の行 (幅はマス数)
-   2 [             ][             ][     ][       ]      ← data 行 (1 マス高)
-   3 [             ][             ][     ][       ]
-   …                                                     ← 窓 w 行だけが tree に載る
+        A  B  C  D  E  F  G  H  I  J  K  L  …  AI     列の文字 (マス 1 つずつ)
+       [列 1       ][列 2       ][列 3 ]               列名の行 (slot -1)。幅はマスの数
+   12  [           ][           ][     ]               data 行 (slot 0)。高さは 1 マス。左端は _id
+   13  [           ][           ][     ]               slot 1
 ```
 
-## 2. 操作から SQL への写像
+table が横に伸びるのは列を足したときだけで、列の幅は 1 〜 12 マスの整数である。行を足すと 1 マス下に伸びる。table の外のマスは値も装飾も持たない。列幅の合計が 35 マスを超えると紙が横に伸びる。
 
-操作 1 つは transaction 1 つに対応し、SQL が要らない操作は tree だけを書く。
+## 2. 操作から命令へ
 
-| 操作                               | SQL                                                                               | tree                                  | frame            |
-| ---------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------- | ---------------- |
-| click / shift+click / drag で選択  | 無し                                                                              | 無し (browser の一時状態)             | 0                |
-| 矢印 / Tab で移動                  | 無し                                                                              | 無し (browser の一時状態)             | 0                |
-| Enter / F2 / 文字 key で編集開始   | 無し                                                                              | 無し (確定まで browser の局所)        | 0                |
-| 編集の確定                         | `UPDATE page_x SET "列" = ? WHERE _id = ?` と該当 cell の MARK の delete / insert | 窓内なら行 1 key を patch             | 1 (同値なら 0)   |
-| Delete で範囲 clear                | 範囲の行を `IN` で 1 文                                                           | 窓の該当行を patch                    | 行数 ÷ f         |
-| space でチェック反転               | UPDATE 1 文 (0 / 1)                                                               | 行 1 key                              | 1                |
-| 選択肢 chip を選ぶ                 | UPDATE 1 文 (選択肢の文字列)                                                      | 行 1 key                              | 1                |
-| 行を足す                           | INSERT 1 文                                                                       | 窓の末尾なら行 1 key                  | 1 から 2         |
-| 行を消す                           | DELETE 3 文 (本体と装飾 2 table) を 1 transaction                                 | 行 1 key を delete                    | 1 から 3         |
-| 列を足す                           | ADD COLUMN                                                                        | layout に記入欄 1 つ (幅のマス数付き) | 1                |
-| 列幅を drag                        | `_col` の 1 行を upsert (drag 中は browser の一時状態だけ)                        | layout の幅                           | 1                |
-| 列名を変える                       | RENAME COLUMN + 装飾の col 更新                                                   | layout の名前                         | 1 + 装飾件数 ÷ f |
-| 列を消す                           | `_drop:` へ RENAME と装飾の delete (DROP は full の save 時)                       | layout から外す                       | 1 から 2         |
-| 並べ替え / 絞り込み / group / 検索 | 窓の読み直しの文が ORDER BY / WHERE を持つ                                        | 一時 key と窓の入れ替え               | 0 (読みは O(N))  |
-| scroll                             | `BETWEEN` の範囲読み直し                                                          | 窓の入れ替え (別 origin)              | 0                |
-| CSV の取り込み                     | INSERT を 1 transaction                                                           | 窓の先頭を載せ直す                    | O(N)             |
-| CSV の出力                         | 全走査の SELECT を stream                                                         | 無し                                  | 0                |
-| undo / redo                        | act が返した逆向きの op を同じ経路で流す                                          | 窓を読み直す                          | 元の op と同じ   |
+browser は利用者の操作を `Op` にして server に送り、tree は読むだけである。選択、編集中の文字列、表示中の page と位置は browser の局所状態で、tree にも SQL にも入らない。
 
-undo は act が transaction の中で求めた逆向きの op を DO の memory に積み、同じ act の経路で SQL に流す。窓の外の行の編集も履歴に入り、move は履歴に入らない。
-履歴は DO の生存期間に限られ、過去の時点へ戻す機能は持たない。
+| 操作                                   | 送る `Op`                              | SQL が書く page                    |
+| -------------------------------------- | -------------------------------------- | ---------------------------------- |
+| click、矢印、Tab                       | 無し                                   | 0                                  |
+| Enter / F2 / double click / 文字 key   | 無し (編集の開始)                      | 0                                  |
+| 確定 (Enter、Tab、blur)                | `cell`。本文も装飾も同じなら送らない   | leaf 1 枚と page 1                 |
+| 列名の行で確定                         | `col.name`                             | page 1 と装飾の leaf               |
+| Delete / Backspace                     | `cell` (本文を空に)                    | leaf 1 枚と page 1                 |
+| 「行を追加」                           | `row.add` と `window` (末尾へ)         | 末尾の leaf と page 1              |
+| 「列を追加」                           | `col.add`                              | page 1                             |
+| 「行を削除」「列を削除」「ページを削除」 | `row.del` / `col.del` / `page.del`     | 本体と装飾。列は table の全 leaf   |
+| 列名の右端を drag                      | 離したときに `style` (`row: 0, width`) | `_style` の leaf 1 枚と page 1     |
+| 「塗り」                               | `style` (`name: 'fill'`)               | `_style` の leaf 1 枚と page 1     |
+| 「太字」                               | 編集中は局所状態だけ。確定で `cell`    | `_mark` の leaf と page 1          |
+| wheel、窓の端での矢印                  | `window`                               | 0                                  |
+| tab の切り替え                         | `window`                               | 0                                  |
+| CSV を drop                            | `import` を 2000 行ずつ、最後に `window` | 取り込んだ行の leaf                |
+| Mod+Z / Mod+Y                          | `undo` / `redo`                        | 戻した cell の leaf                |
+| 「保存」「開き直す」                   | `save` / `open`                        | 0                                  |
+| SQL 欄で Enter                         | `sql`                                  | 0                                  |
 
 ## 3. 窓
 
-窓は表示中 page の連続する w 行 (既定 50、前後に 1 窓ぶんの先読み) と、横 35 マスの範囲である。
-tree の key は `page/<名前>` (layout)、`win` (範囲と表示順の `_id`)、`row/<_id>` (値の Y.Array)、`deco/<_id>` (装飾) であり、scroll で範囲が外れた行は delete し新しい行を set する。
-1 cell の編集は Y.Array の 1 要素の差し替えだけを送る。入れ替えは `win` origin で transact し、編集は `act` origin で transact する。
-tree は保存しない。tree の大きさは窓の key を除くと行数 N に依存しない。
+窓は「ある client が今見ている範囲」で、server に登録された問い合わせの集まりである。`window` は列、行、cell の装飾、文字区間の装飾、最大の `_id` の 5 つを `<id>/…` の名前で登録する。書き込みの命令は最後に `refresh` を置き、登録済みの問い合わせを全員ぶん実行し直して、変わった行だけを tree に書く。
 
-窓の読みは本体 1 文と装飾 2 文の 3 文で、どれも (page, row) の範囲走査であり行数 N に依存しない。
-並べ替えや絞り込みを選んでいるときの窓は全走査の結果から LIMIT と OFFSET で切るので O(N) になるが、1 行あたりの走査は µs の桁であり 10^6 行でも秒を超えない。
+行の読みは `"_id" >= top order by "_id" limit size` で、木を root から 1 回降りて leaf を右へ辿るだけである。行数にも、消した行の数にも依らない。縦の scroll bar の長さは `max("_id")` から決める。下へ進むときは窓の中の k 行目の `_id` を次の `top` にし、上へ戻るときは `top - k` にする。
 
-## 4. 装飾の anchoring
+窓の大きさは `size` (browser は 30 行) で決まり、table の行数に依らない。client が去るときは `leave` で問い合わせの登録と結果を消す。
 
-文字の装飾 (色、太字、取り消し) は「どの文字か」に付くので (row, col, from, to) で持ち、editor の確定が位置を再計算して書き直す。
-cell の装飾 (塗り、枠、揃え) は「どの cell か」に付くので (row, col) で持ち、本文が空になっても残る。
-行は row id に付いているので並べ替えで一緒に動き、列は列名に付いているので改名時に同じ transaction で更新する。
+## 4. 装飾の付き先
 
-利用者が table 全体を動かす操作は 1 page 1 table で原点が A1 に固定されているため存在しない。
-将来 table の外のマスに装飾を許すときは、絶対座標 (page, square_row, square_col) に付く別 table として足し、row id に付く CELL_STYLE とは混ぜない。
+| 種類             | 付き先                       | 本文を空にしたとき | 行 / 列を消したとき      | 列名を変えたとき     |
+| ---------------- | ---------------------------- | ------------------ | ------------------------ | -------------------- |
+| cell の装飾      | `(page, _id, 列名)`          | 残る               | 同じ transaction で消える | 同じ transaction で付け替わる |
+| 文字区間の装飾   | `(page, _id, 列名, start)`   | 区間が空になり消える | 同じ transaction で消える | 同じ transaction で付け替わる |
+| 列の幅           | `(page, 0, 列名, 'width')`   | 関係しない         | 列と一緒に消える          | 付け替わる           |
 
-## 5. LLM が観測する面
+文字区間は本文の文字位置 (`start` 以上 `stop` 未満) で持つ。本文が変わっても区間は自動では動かないので、確定のたびに editor が区間を送り直し、server は本文の長さで切り詰めて、その cell の `_mark` を消してから入れ直す。
 
-LLM に返る状態は、layout と窓の行と装飾であり、行数 N に依存しない。選択と編集中の buffer は browser ごとの一時状態で tree に載せない。
-schema 一覧は page ごとの列名と型と既定値と現在の行数を返す。
-自由 SQL は全走査で実行し、返す行数は窓の行数 (50) を上限に切る。
-集計 (COUNT、SUM、GROUP BY) は O(N) で許す。
-書き込みは SQL ではなく操作 (act) を経由させ、操作 → SQL → tree の一方向を LLM にも適用する。
+## 5. undo
+
+SQLite には戻す仕組みを持たせない。`cell` と `style` は、書く前の値を `edit` map に置いてから (`fill`)、新しい値を client ごとの origin で書く (`set`)。`undo` は yjs の UndoManager に `edit` map を 1 つ戻させ、戻った key と値を logical な命令に読み替えて、同じ compile の経路で SQL に流す。
+
+| 性質                                         | 理由                                                             |
+| -------------------------------------------- | ---------------------------------------------------------------- |
+| 窓の外の cell も戻せる                       | `edit` map の key は cell の位置で、窓とは別の map である        |
+| 窓の移動は履歴に入らない                     | UndoManager の対象は `edit` map だけである                       |
+| 他の client が後から書いた cell は戻らない   | UndoManager は自分の origin 以外が上書きした key を戻さない      |
+| 行、列、page の削除と列名の変更は履歴を捨てる | 消えた位置を指す key が残ると、戻したときに無い行や列へ書くため  |
+| 履歴は Durable Object の生存期間に限られる   | tree は保存しない                                                |

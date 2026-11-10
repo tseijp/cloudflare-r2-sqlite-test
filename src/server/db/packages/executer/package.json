@@ -1,0 +1,13 @@
+{
+        "name": "@db/server-executer",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/server-share": "workspace:*",
+                "@db/server-executer-sqlite": "workspace:*",
+                "@db/server-executer-page": "workspace:*",
+                "@db/server-executer-store": "workspace:*",
+                "@db/server-executer-tree": "workspace:*"
+        }
+}

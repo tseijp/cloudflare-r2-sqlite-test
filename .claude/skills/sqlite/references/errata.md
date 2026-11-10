@@ -1,36 +1,83 @@
-# 先行案の検証
+# 確かめたこと
 
-先行する設計案 2 本の主張を、一次資料 (file format と複製器の仕様と object storage の API) と手元の実測で確かめた結果。確認できたものは cost.md に吸収済みであり、ここでは修正と未検証だけを残す。
+設計が寄りかかっている外部の事実を、確かめ方と一緒に並べる。「source」は `node_modules` の実物を読んだもの、「binary」は wasm の中の文字列を調べたもの、「一次資料」は公式の仕様書の記述で、この repository では実行して確かめていないものである。
 
-## 1. 修正
+## 1. wa-sqlite 1.0.0
 
-| 主張                                             | 判定       | 実測                                                                                                                                                                                             |
-| ------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 型付き横持ちは文字列のままの横持ちより常に小さい | 条件付き   | 短い小数が多い file では REAL 8 byte が TEXT より大きく、文字列のままのほうが 1 割小さかった。float 多列と整数では型付きが小さい。写像は宣言の型で決め、小数の桁が短い列は TEXT を選ぶ余地がある |
-| ADD COLUMN 直後の空列の DROP COLUMN は 2 frame   | 誤り       | 空列でも 9 frame から file 全量まで振れた。DROP は常に file に比例するものとして扱う                                                                                                             |
-| 隣接行に 1 cell ずつ 30 transaction で 30 frame  | 正しい     | 同じ page でも transaction ごとに frame が出る。加えて、同じ値を再確定すると frame が 0 になる (無変更 page は書かれない) ことを新たに観測                                                       |
-| 連続 50 行を 1 transaction で 3 frame            | 式に依存   | frame は ceil(50 ÷ f) 前後で、leaf の行数 f により 1 から 9 に振れる。固定値ではなく式で持つ                                                                                                     |
-| 1 行追加は index 2 本で 15 frame                 | 桁は正しい | index 1 本で 2 から 11 frame。index の列の値の分布で振れる                                                                                                                                       |
-| ALTER COLUMN SET NOT NULL は 1 frame             | 補足       | 1 frame だが全行を走査し (N に比例)、NULL が 1 つでもあれば拒否される                                                                                                                            |
-| rich text の包みは本文の 3 から 8 倍             | 式に依存   | 包みは 1 cell あたり固定 (本文 100 byte 相当) なので、比は 1 + 固定 ÷ 本文長になる。100 字の cell では 2 倍                                                                                      |
-| yjs の V2 encoding は 1 割しか減らない           | 条件付き   | 新規 doc では差が無いが、全行を 100 回上書きした doc では V1 が 2.4 倍になるのに V2 は 1.0 倍のままだった                                                                                        |
-| 無料階級は image 丸ごと 5MB                      | 前提と矛盾 | 手元の fixtures はすべて image が 7MB から 58MB になり、丸ごと階級に 1 件も入らない。PoC は最初から frame 単位の複製で採点する                                                                   |
+| 事実                                                                                                              | 確かめ方 |
+| ----------------------------------------------------------------------------------------------------------------- | -------- |
+| 同梱の SQLite は 3.44.0                                                                                           | binary   |
+| JSON 関数 (`json_each`、`->>` の実体の `json_extract`) が入っている                                               | binary   |
+| `dbstat`、`sqlite_dbpage`、fts5、rtree は入っていない                                                             | binary   |
+| compile option に `ENABLE_BATCH_ATOMIC_WRITE`、`OMIT_AUTOINIT`、`OMIT_DECLTYPE`、`OMIT_DEPRECATED`、`OMIT_LOAD_EXTENSION`、`OMIT_SHARED_CACHE` がある | binary |
+| build は `wa-sqlite.mjs` (同期) と `wa-sqlite-async.mjs` (Asyncify) の 2 つ。JSPI の build は無い                 | source   |
+| `step` `prepare_v2` `open_v2` `finalize` `reset` `close` はどちらの build でも `async` 関数                       | source   |
+| VFS は class でなくてよい。`name` と `x…` method を持つ object を `vfs_register` に渡せば呼ばれる                 | source   |
+| `xRead` / `xWrite` に渡る buffer は wasm の heap の一部で、呼び出しの後は別の内容になる。持ち続けるなら copy する | source   |
+| `xFileSize` の出力先は `setBigInt64(0, n, true)`、`xOpen` / `xAccess` / `xCheckReservedLock` は `setInt32(0, n, true)` | source |
+| async build は登録時に VFS へ `handleAsync` を差し込む。中身は `f().then(wakeUp)` で、`f` が reject すると wasm は二度と再開しない。VFS の非同期処理は必ず resolve させ、失敗は `SQLITE_IOERR` を返り値にする | source |
+| `instantiateWasm(imports, receive)` は `receive(instance)` の返り値を返さなければならない。`instance.exports` を返すと Asyncify の包みが外れる | source |
+| `set_authorizer(db, f, userData)` の `f` は `(userData, actionCode, …)` で呼ばれ、`f` に null を渡すと外れる     | source   |
+| `get_autocommit(db)` がある                                                                                       | source   |
 
-## 2. 確認
+## 2. SQLite
 
-次は一次資料または実測で確認でき、cost.md の数値の根拠になっている。
-database header の offset (16 page size、20 reserved、24 change counter、28 page 数、40 schema cookie)、
-leaf の上限 X = U − 35 と M の式、serial type (NULL と 0 と 1 が 0 byte、TEXT 2L + 13、BLOB 2L + 12)、lock-byte page の位置、
-WAL header 32 byte と frame header 24 byte と checksum の計算と salt の規則、
-ALTER COLUMN SET / DROP NOT NULL が 3.53.0 で入ったこと、
-DROP COLUMN の制約と内容の書き直し、12 手順の再作成、差分 object の header 100 byte と page header 6 byte と圧縮 size 4 byte と零終端 6 byte と varint index と trailer 16 byte と version field が無いこと、
-複製器の読み側が既定 read-only で LRU 10MB と 1 秒 polling で journal mode を DELETE に見せること、圧縮段階が 30 秒 / 5 分 / 1 時間 / 24 時間で L0 が 5 分で消えること、
-object storage の range get と条件付き put と list 1000 件と multipart の均等 part と 7 日の破棄、yjs の mergeUpdates が削除済み内容を回収しないこと、
-宣言 schema から JSON Schema への変換が default / description / integer / enum / format / meta を保つこと、UndoManager が origin で追跡対象を選べること。
+| 事実                                                                                                         | 確かめ方 |
+| ------------------------------------------------------------------------------------------------------------ | -------- |
+| database header の offset 16 に page size、24 に change counter、28 に page 数                               | 一次資料 |
+| `journal_mode = MEMORY` と `temp_store = MEMORY` では、main の database file 以外を VFS に開かせない          | 一次資料 |
+| `max_page_count` を超える書き込みは `SQLITE_FULL` で失敗する                                                 | 一次資料 |
+| `ADD COLUMN` と `RENAME COLUMN` は既存の行に触れない。`DROP COLUMN` は table の内容を書き直す (3.35 から)    | 一次資料 |
+| `RETURNING` は 3.35 から、`->>` は 3.38 から                                                                 | 一次資料 |
+| `insert … select … where … on conflict (…) do update` は、select に where があれば構文が曖昧にならない       | 一次資料 |
+| authorizer は prepare の時点で呼ばれ、`SQLITE_DENY` を返すとその文は prepare に失敗する                      | 一次資料 |
+| `pragma_table_info(?)` は table 値関数で、引数を bind できる                                                 | 一次資料 |
 
-## 3. 未検証
+## 3. drizzle-orm 0.45.2
 
-次は確かめる手段を持たなかったので、採点にも設計にも使っていない。
-read-only の wasm sqlite の page size の推奨値、bytes から直接 image を開く API の有無、Durable Object 内で node の sqlite が使えるかどうか、
-object storage の put が custom metadata を引き継ぐかどうか (API 文書に記載が無い)、同期 server が room が空になったときに保存 hook を呼ぶかどうか。
-これらに依存する設計を採るときは、先に runner で確かめてから台帳に残す。
+| 事実                                                                                                   | 確かめ方 |
+| ------------------------------------------------------------------------------------------------------ | -------- |
+| SQLite の dialect は識別子を `"` で囲み、中の `"` を `""` にする                                       | source   |
+| `sql` template に入れた文字列、数値、null は `?` と params になる。配列は `(a, b)` の並びになる        | source   |
+| `sql.identifier(名前)` は識別子、`sql.raw(文字列)` はそのままの文になる                                | source   |
+| `drizzle-orm/sqlite-proxy` の `drizzle(callback)` で作った builder は、`toSQL()` を呼ぶだけなら何も実行しない | source |
+| `sqliteTable` に `WITHOUT ROWID` を付ける指定は無い。DDL は `getTableConfig` から自分で組む            | source   |
+| zod → drizzle の変換は無い。zod はこの repository に入っていない                                       | source   |
+
+## 4. R2 と partyserver
+
+| 事実                                                                                                                 | 確かめ方           |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `range: { offset, length }` が object の末尾を越えると末尾で切られる。`offset` が大きさを越えると失敗する            | source (miniflare) |
+| `put` の `onlyIf` に `if-match` / `if-none-match: *` の Headers を渡せる。条件が外れると `null` が返る               | source (miniflare、型定義) |
+| `delete` は key の配列を受ける                                                                                       | 型定義             |
+| `@cloudflare/vite-plugin` は `.wasm` の import を `WebAssembly.Module` にする                                        | source             |
+| partyserver の `hibernate` の既定は false                                                                            | source             |
+| y-partyserver 2.2.0 の `onSave` は doc の update から debounce して呼ばれるだけで、接続が閉じたときには呼ばれない     | source             |
+| YProvider は同期が済むたびに `sync` を emit する                                                                     | source             |
+
+miniflare は R2 の模擬で、本物の R2 で確かめたものではない。
+
+## 5. yjs 13.6
+
+| 事実                                                                                                   | 確かめ方 |
+| ------------------------------------------------------------------------------------------------------ | -------- |
+| `UndoManager` は `trackedOrigins` と `captureTimeout` を受け、`clear()` を持つ                          | 型定義   |
+| 既定では、他が上書きした map の key を undo で戻さない (`ignoreRemoteMapChanges` の説明)               | 型定義   |
+| undo / redo の transaction の origin は UndoManager 自身である                                         | source   |
+| 既定で戻さないのは、自分の履歴に無い書き込みが同じ key の後ろに続いているときである (`redoItem` の条件) | source   |
+
+## 6. 先行案からの訂正
+
+| 先行案の主張                                             | 判定                                                                                   |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 同期 server は room が空になったときに保存 hook を呼ぶ   | 誤り。y-partyserver 2.2.0 は呼ばない。アプリが `onClose` で save を呼ぶ                |
+| 変更 page を知るには WAL が要る                          | 不要。VFS の `xWrite` が書かれた page 番号をそのまま受け取る                            |
+| 小さい file は丸ごと、大きい file は差分のほうが PUT が安い | 誤り。R2 の PUT は大きさに依らず 1 回。分かれ目は memory と開くときの GET で決まる     |
+| 開くには object の一覧 (list) が要る                     | 不要。delta は番号で辿れ、前の object の etag を持つので順に GET すれば鎖が分かる       |
+| page 単位の索引を object の末尾に置く                    | 不要。image は chunk の長さの表を先頭に持ち、delta は丸ごと読む                         |
+| lz4 を自前で持つ                                         | 不要。`CompressionStream('gzip')` が workerd、node、browser にある                      |
+
+## 7. 確かめていないこと
+
+workerd の上での起動、本物の R2 での条件付き put、転送速度 (SWAP の根拠)、gzip の圧縮比、範囲読みが触れる chunk 数、Asyncify の stack の深さの余裕。

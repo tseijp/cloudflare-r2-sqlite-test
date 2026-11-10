@@ -1,0 +1,11 @@
+{
+        "name": "@db/server",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/server-share": "workspace:*",
+                "@db/server-compiler": "workspace:*",
+                "@db/server-executer": "workspace:*"
+        }
+}

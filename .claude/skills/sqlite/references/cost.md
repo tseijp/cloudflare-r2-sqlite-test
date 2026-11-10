@@ -1,109 +1,99 @@
 # コスト model
 
-採点表の閾値はすべてこの model から導かれる。
-数値は一次資料 (file format と複製器の仕様) と手元の実測の傾きから取り、絶対値ではなく式と比で表す。
+設計の分岐は全てこの model の式から出る。単価は Cloudflare の料金表の値で、変わったら 1 節の表だけを直す。
 
-## 1. page と行
+## 1. 課金の単位
 
-page size を S、末尾の予約を除いた usable size を U とすると、table の leaf 1 枚に行内で置ける payload の上限 X は U − 35 である。
-行の payload P が X を超えると、M = ((U − 12) × 32 ÷ 255) − 23 を下限に残りが overflow page (1 枚に U − 4 byte) へ出る。
+| 対象                         | 単価 (100 万あたり $)        | Durable Object の秒に換算 |
+| ---------------------------- | ---------------------------- | ------------------------- |
+| R2 class A (put / list)      | 4.50                         | 2.8 秒                    |
+| R2 class B (get / head)      | 0.36                         | 0.225 秒                  |
+| R2 delete                    | 0                            | 0                         |
+| R2 の転送量                  | 0                            | 0                         |
+| R2 の保管 (1 GB · 月)        | 0.015 ($ / GB · 月)          | PUT 3,333 回ぶん          |
+| Durable Object の稼働 1 秒   | 0.128 GB × 12.5 = 1.6        | 1 秒                      |
 
-record は header の varint 列と serial type で決まり、
-NULL と整数 0 と 1 は 0 byte、小さな整数は 1 から 8 byte、
-REAL は常に 8 byte、TEXT は本文 L byte と header の 1 から 2 byte である。
+R2 は byte ではなく回数に課金する。1 KB の put も 30 MB の put も同じ 1 回である。byte が費用になる経路は 2 つだけで、保管の GB · 月と、転送を待つ間の Durable Object の稼働秒である。
 
-したがって
+## 2. 1 回の利用の費用
 
-- 短い小数は TEXT のほうが REAL より小さく、長い小数と整数は REAL と INTEGER のほうが小さい
-- 空 cell は NULL (0 byte) が最小であり、空文字列はそれより 1 byte 大きい
+利用 1 回を「開く → 編集 → save を s 回 → 閉じる」とすると、費用は次の和になる。
 
-行の平均 byte を r とすると leaf 1 枚の行数 f は U ÷ (r + cell pointer 2 + header) で、
-手元の fixtures では数値列中心で 40 から 65、幅広 float で 27、短文 12 列で 46、長文で 5 から 7 になった。
-interior page の扇出は 350 から 400 なので、N が 10^6 以下で f が 5 以上なら木の深さは 3 以下に収まる。
-窓 w 行の読みは leaf ceil(w ÷ f) 枚と interior (深さ − 1) 枚であり、N には対数でしか依存しない。
+```
+費用 = B × (開くときの GET 数 + SQL が取り寄せた chunk 数)
+     + A × (save のうち変化があった回数)
+     + D × (転送と圧縮を待った秒)
+     + 保管 × (image と delta の byte) × 時間
+```
 
-image byte ÷ CSV byte は 0.7 から 1.3 の幅に入り、float 多列が小さく、短い小数と日付文字列が多い file が大きい。
-1 行 1 JSON 列は typed 横持ちの 1.3 から 3.4 倍、1 cell 1 行 (EAV) は 1.2 から 2.8 倍、page size 1024 は 4096 より 5 から 25% 大きく page 数が 4 倍になる。
+A の項は「変化があった save の回数」でしか減らせない。1 回の save を複数の put に分けない、変化が無ければ put しない、save の間隔を空ける、の 3 つがそのまま製品の規則になっている。
 
-## 2. WAL frame
+## 3. chunk
 
-WAL は 32 byte の header に、24 byte の frame header と page 1 枚を 1 組とする frame が続く。
-1 transaction が生む frame 数は汚した distinct page 数であり、leaf の分割が起きると interior が足され、schema を触ると page 1 が足される。
-同じ page を同じ transaction 内で何度書いても 1 frame だが、transaction を分ければその回数だけ frame になる。
-無変更の page は書かれないので、同じ値を再確定しても frame は 0 である。
+image は CHUNK 枚 (512 page = 2 MiB) ごとに独立に圧縮して並べ、先頭に各 chunk の長さの表を置く。range GET の単位は chunk である。
 
-| 操作                          | frame 数               | 根拠                                   |
-| ----------------------------- | ---------------------- | -------------------------------------- |
-| 1 cell の確定 (1 transaction) | 1                      | leaf 1 枚                              |
-| 同値の再確定                  | 0                      | 無変更 page は書かれない               |
-| 隣接 k 行を 1 transaction で  | ceil(k ÷ f) + 0 から 1 | leaf の連続                            |
-| 乱択 k 行を 1 transaction で  | k 前後                 | 行ごとに別 leaf                        |
-| 隣接 k 行を k transaction で  | k                      | transaction ごとに同じ page を書き直す |
-| 行の追加 (index 無し)         | 1 から 2               | 末尾 leaf と分割時の interior          |
-| 行の追加 (index 1 本)         | 2 から 11              | index の leaf と分割                   |
-| index の作成                  | file の 8 から 30%     | 全行の走査と index page の生成         |
-| checkpoint                    | 0 (image へ写すだけ)   | 既定で 1000 frame 到達時に自動         |
+| image の大きさ   | 開くときの GET      | 窓 1 つを読む GET        | save                      |
+| ---------------- | ------------------- | ------------------------ | ------------------------- |
+| 1 chunk 以内     | 1 (全体が手に入る)  | 0                        | 毎回 image を 1 PUT       |
+| 2 chunk 以上     | 1 + delta 数 + 1    | 触れた chunk のうち未取得の数 | delta を 1 PUT。溜まったら image を 1 PUT |
 
-複製は frame を単位にするので、frame 数がそのまま送る page 数である。
+chunk を大きくすると GET は減り、memory は増える。memory に置く chunk は ROOM 個までで、古い順に捨てる。捨てた chunk は必要になったときに取り直す。page 層が持つ memory は「ROOM × chunk + 保存前の page + delta の page」で、最後の 2 つは次節の規則で 1 chunk ぶん未満に抑える。
 
-## 3. schema 変更の階級
+rowid 順に追記した table の page は確保した順に file に並ぶ (leaf が続き、溢れた時点で interior が挟まる)。`_id` の範囲読みが触れるのは root から leaf までの経路と連続する leaf で、触れる chunk 数は測っていない。並べ替えや集計は全 leaf を読むので、image の chunk 数だけ GET する。
 
-| 変更                             | frame                      | 所要時間    | 備考                                                                                                     |
-| -------------------------------- | -------------------------- | ----------- | -------------------------------------------------------------------------------------------------------- |
-| ADD COLUMN                       | 1                          | 定数        | 既存行に触れない。PRIMARY KEY / UNIQUE 付きは不可、NOT NULL には既定値が要る                             |
-| RENAME COLUMN                    | 1                          | 定数        | index / trigger / view の中の名前も書き換わる                                                            |
-| ALTER COLUMN SET / DROP NOT NULL | 1                          | N に比例    | 3.53.0 から。既存行に NULL があれば拒否される                                                            |
-| DROP COLUMN                      | file の全 leaf 相当        | file に比例 | 空列でも全量になり得る。index / PK / UNIQUE / CHECK / FK / generated / trigger / view が参照する列は不可 |
-| 型の変更                         | file の 2 倍 (VACUUM まで) | file に比例 | 文が無く 12 手順の table 再作成になる                                                                    |
+## 4. delta を持ち越すか、image に畳むか
 
-したがって操作のたびに走ってよいのは ADD と RENAME だけであり、
-DROP と型変更は snapshot (全 page を書く契機) に相乗りさせる。
+delta を 1 つ持ち越すと、以後の open のたびに GET が 1 回増える。image に畳む (merge) と、古い image 全体の GET 1 回と、image 全体の転送が要る。どちらを選んでも PUT は 1 回なので、比べるのは GET と転送だけである。
 
-## 4. 丸ごと保存と frame 単位の交点
+```
+持ち越しの累計 (GET 換算)   = 1 + 2 + … + N = N(N + 1) ÷ 2        N は今ある delta の数
+畳む費用 (GET 換算)         = 1 + 2 × pages ÷ SWAP                SWAP は GET 1 回と等価な page 数
+```
 
-image を丸ごと保存する 1 回のコストは file byte に比例し (VACUUM INTO の所要時間は file に比例、PUT も file byte)、
-frame 単位の保存は frames × (S + page header 10) × 圧縮比に比例する。
-丸ごとが得になるのは frames × S が file を超えるとき (1 回の保存の間に全 page を汚したとき) だけである。
-対話編集でそれは起きないので、file が数 MB を超えた時点で frame 単位が常に小さい。
-読みも frame 単位側は page index (1 page あたり varint 3 本、おおむね 8 byte) と窓の page だけで済み、
-index byte は file の 1% 未満である。
+累計が畳む費用に並んだ save で畳む。先の利用回数を知らずに決める規則としては、最良の決め方の 2 倍以内に収まる (ski rental)。
 
-手元の fixtures はすべて image が 7MB から 58MB になるので、丸ごと保存の階級は 1 件も満たさない。
-丸ごと経路は空に近い file の初回保存にだけ残し、採点は frame 単位の経路で行う。
+| pages             | 畳むまでの delta 数 |
+| ----------------- | ------------------- |
+| 600               | 2                   |
+| 2,048             | 2                   |
+| 8,192 (上限)      | 4                   |
 
-## 5. 保存の object
+加えて、delta の page と保存前の page の合計が 1 chunk ぶんに達したら畳む。これは費用ではなく memory の上限のための規則である。
 
-DO は save を呼んだときだけ、前回の save から WAL frame に現れた page の最新版を 1 つの object にして 1 回の put で送る。時間で常駐する複製器は持たない。
-object は page を page size ごとに並べた本体、page 番号の u32 × page 数の index、16 byte の footer (page 数、page size、適用後の page 数、magic) からなり、圧縮しない。
-名前は `<prefix><txid 12 hex>.full` か `.diff` で、full は全 page、diff は汚れた page だけを持つ。
-diff の数が 16 に達するか、diff の byte の和が image の半分を超えた save では full を送り、それより古い object を 1 回の delete で消す。
-開くときは list 1 回で object を並べ、最後の full から後の object ごとに、末尾の index と footer を 1 回の suffix GET で読み、page 番号 → (object, offset) の表を memory に持つ。
-page は SQL が要求したときに取り、同じ object の中で連続する page を 16 枚まで 1 回の range GET にまとめる。
+SWAP = 2048 は「GET 1 回 = 0.225 秒 = 転送 8 MiB ぶん」と置いた値で、転送速度は測っていない。測ったらこの定数だけを直す。
 
-これらから保存のコストは次の式になる。
-1 save の class A は put 1 回 (full のときは delete 1 回を足す) で、byte は汚れた page 数 × (page size + 4) + 16 である。
-開き直しの class A は list 1 回、class B は object 数と窓が触れた page の run 数の和である。
+## 5. save の間隔
 
-<!-- PoC では writer (WAL → 差分 object) を container の複製器に任せるか同じ format を自前で書くかを選べるが、runner が見るのは送った byte と復元の同値と index 先読みだけであり、どちらでも採点は同じである。 -->
+Durable Object は接続がある間ずっと稼働秒を払っている。save を T 秒に 1 回行うと、put の費用は稼働の費用の 2.8 ÷ T 倍になる。
 
-## 6. object storage の操作
+```
+T = PUT ÷ (稼働 1 秒 × 許す割合)        割合 5% なら T = 56 秒
+```
 
-put は object 単位で、etag 一致を条件にした put で別 writer の書き込みを検出できる。
-get は offset と length (または末尾からの suffix) で range を取れるので、
-object の index は、object の大きさと page size から長さが決まる末尾の suffix 1 回で得られる。
-list は prefix で 1 回 1000 件までなので、object 数が list のコストになり、
-full への畳み込みが object 数を抑える。
-multipart は均等な part でなければならず、未完了は 7 日で破棄される。
+アプリは「最後の編集から T ÷ 2 秒、編集が続いても T 秒」で save を呼び、最後の接続が閉じたときにも呼ぶ。異常終了で失うのは最後の save 以後の編集で、最大 T 秒ぶんである。
 
-## 7. yjs
+## 6. 圧縮
 
-doc の snapshot byte は載せた JSON の byte とほぼ同じ (比 1.0) で、V2 encoding は新規 doc では差が出ない。
-1 行を object ごと set し直す wire は行 byte に等しく、窓 w 行の入れ替えは w × 行 byte である。
-上書きは tombstone として残り、全行を 100 回上書きすると V1 snapshot は 2.4 倍になるが V2 は 1.0 倍のままであり、
-mergeUpdates は削除済み内容を回収しないので update の和のままになる。
-縮めるには live な key を新しい doc に set し直す。
+gzip は保管の byte と転送の秒を減らす。回数は減らさない。圧縮比は測っていない。image を chunk ごとに圧縮するのは、range GET で 1 chunk だけ取り出せるようにするためである。gzip の末尾には CRC-32 があり、壊れた object は伸長で失敗する。
 
-文字列 cell を string のまま持つと overhead は 1 割強、Y.Text は 2 割、paragraph 属性付きの XmlFragment は 1 cell あたり本文 100 byte 相当の固定 overhead を足すので短文ほど比が悪い。
-1 文字の挿入は Y.Text と XmlText で数十 byte、3 文字の太字化も同程度だが、string の再 set は cell 全体を送る。
-UndoManager は origin の集合で追跡対象を選べるので、窓の入れ替えを別 origin にすれば undo stack に積まれない。
-tree snapshot が N に依存しないのは、窓の key を snapshot から除く設計でだけ成立する。
+## 7. SQLite の page と行
+
+page size を S、予約領域を除いた大きさを U とする。table の leaf に行内で置ける payload の上限は X = U − 35 で、超えた分は下限 M = ((U − 12) × 32 ÷ 255) − 23 を残して overflow page (1 枚に U − 4 byte) に出る。record は header の varint 列と値で、NULL は 0 byte、TEXT は本文 byte と header 1 〜 2 byte である。
+
+1 transaction が書く page は「変えた行の leaf、分割が起きた interior、schema を変えたら page 1」で、同じ page は transaction の中で何度変えても 1 枚である。rollback journal の mode では、書き込み transaction のたびに page 1 の change counter が増えるので、page 1 は毎回書かれる。
+
+| 操作                    | 書く page                                   |
+| ----------------------- | ------------------------------------------- |
+| cell 1 つの確定         | leaf 1 枚と page 1                          |
+| 同じ本文の再確定        | 0 枚 (`WHERE … IS NOT ?` で行に触れない)    |
+| 行の追加                | 末尾の leaf と page 1。分割時は interior    |
+| `ADD COLUMN`            | page 1 (schema) だけ                        |
+| `RENAME COLUMN`         | page 1 だけ                                 |
+| `DROP COLUMN`           | その table の全 leaf                        |
+| `DROP TABLE`            | page 1 と freelist                          |
+
+`DROP COLUMN` は table を丸ごと書き直すので、直後の save は 4 節の規則で merge になりやすい。PUT は 1 回のままである。
+
+## 8. yjs
+
+view は問い合わせ結果を 1 行 1 key で持つ。key は `<view 名>/<連番>` で、scroll しても key は増えない (同じ連番を上書きする)。行の `_id` を key にすると、通り過ぎた行の数だけ削除済みの key が doc に残る。1 cell の編集で送られるのは、その行の key 1 つの上書きである。undo の履歴は `edit` map だけを対象にするので、窓の入れ替えは履歴に入らない。

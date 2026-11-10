@@ -1,0 +1,10 @@
+{
+        "name": "@db/client-compiler-parse",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/client-share": "workspace:*",
+                "@db/client-compiler-parse-csv": "workspace:*"
+        }
+}
