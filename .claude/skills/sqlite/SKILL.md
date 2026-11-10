@@ -103,11 +103,14 @@ compiler は `(op, stat)` から命令列を返すだけで、何も読まず何
 | open し直すと変更が消えている                     | save が reject していないか。`store diverged` / `store conflict` は 3.2 が働いた結果    |
 | open が `image corrupt` / `delta corrupt` で止まる | object の先頭 4 byte (`SQLI` / `SQLD`)、gzip の伸長、delta の長さの式                    |
 | SQL が終わらない                                  | page 層の非同期の読みが reject していないか (errata.md 1 節の `handleAsync`)            |
+| wasm が `unreachable` で落ちる                    | page 層の `xRead` が、再入のときも `handleAsync` を通っているか (errata.md 1 節の Asyncify) |
 | `database disk image is malformed`                | image の chunk の並びと page 数、delta の適用順、`_kept` (base のうちまだ有効な page 数) |
 | GET が多い                                        | delta の数 (`stat().deltas`)、chunk の cache が溢れていないか、全走査の SQL             |
 | PUT が多い                                        | save を呼ぶ間隔。1 回の save が 2 回 put することは無い                                 |
 | 孤児がある                                        | 削除の命令列に装飾の delete が並んでいるか、装飾の insert の `where exists`             |
 | undo で値が戻らない                               | `fill` が `set` より前にあるか、他の client が後から同じ cell を書いていないか          |
+| undo の値が別の行に書かれる                       | page table の `_id` が `AUTOINCREMENT` か (tables.md 4 節)                              |
+| `sql` の結果に別の文の行が混ざる                  | sqlite の実行が文ごとに行の配列を作り直しているか (errata.md 1 節の `statements`)       |
 | view が古い                                       | 書き込みの命令列の最後に `refresh` があるか、view が登録されているか (`window`)         |
 
 ## 5. 参照表

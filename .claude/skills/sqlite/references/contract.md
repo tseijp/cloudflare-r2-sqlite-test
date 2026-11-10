@@ -28,7 +28,7 @@ package 名から file への対応は `src/**/package.json` の `name` と `exp
 | `execute(codes)`   | physical な命令の配列を上から順に実行する。Promise。`run` と同じ列に並ぶ                                   |
 | `stat()`           | 6 節の `Stat` を同期で返す                                                                                 |
 
-`createDb` は何も読まない。最初に `run({ type: 'open' })` を呼ぶと store から読み込む。同じ `store` に対して新しい `createDb` を作り `open` すると、最後に成功した `save` の状態が開く。`save` していない変更は memory にしか無い。
+`createDb` は何も読まない。最初に `run({ type: 'open' })` を呼ぶと store から読み込む。空の store を開くと system table を作るので `dirty` は 0 でなく、最初の `save` は image を put する。`sql` に複数の文を渡すと順に実行され、最後の文の結果が返る。無い行への `cell` / `style` / `row.del` は何も変えずに解決する。同じ `store` に対して新しい `createDb` を作り `open` すると、最後に成功した `save` の状態が開く。`save` していない変更は memory にしか無い。
 
 ## 3. Store
 
@@ -161,7 +161,7 @@ field の制約。`page` / `col` / `name` は 1 〜 64 文字で、`_` と `sqli
 
 | table       | 列                                                  | 主キー                          |
 | ----------- | --------------------------------------------------- | ------------------------------- |
-| `<page 名>` | `_id INTEGER PRIMARY KEY` と利用者の列 (全て TEXT)  | `_id`                           |
+| `<page 名>` | `_id INTEGER PRIMARY KEY AUTOINCREMENT` と利用者の列 (全て TEXT)。消した行の `_id` は再利用されない | `_id` |
 | `_style`    | `page, row, col, name, value`                       | `(page, row, col, name)`        |
 | `_mark`     | `page, row, col, start, name, stop, value`          | `(page, row, col, start, name)` |
 

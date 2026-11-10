@@ -55,7 +55,7 @@ erDiagram
 | -------------- | -------------------------------------------------------------------------------------------------- |
 | PAGE           | SQLite の schema。page 名が table 名、並びは `sqlite_master` の rowid (作成順)                     |
 | COLUMN         | SQLite の schema。列の存在と並びは `pragma_table_info` だけが正。幅は `_style` の `row = 0` の行   |
-| ROW            | page table の行。`_id` (rowid) が行の識別子で、縦の位置でもある                                    |
+| ROW            | page table の行。`_id` (rowid、`AUTOINCREMENT`) が行の識別子で、縦の位置でもある                   |
 | CELL           | page table の列の値。型は TEXT だけ                                                                |
 | STYLE          | `_style`。`(page, row, col, name) → value`。cell に付き、本文が空になっても残る                    |
 | MARK           | `_mark`。`(page, row, col, start, name) → (stop, value)`。本文の区間に付き、本文と同じ文で書き直す |
@@ -73,6 +73,8 @@ erDiagram
 **page table に index を作らない。** index は行の追加で書く page を増やし、`DROP COLUMN` を拒む。窓は rowid の範囲読みなので index は要らない。並べ替えと絞り込みは全走査になる。
 
 **`_id` を縦の位置にする。** `count(*)` も `offset` も leaf を端から読む。`max("_id")` と `"_id" >= ?` は木の深さぶんの page で済む。行を消すと番号が欠けるので、窓は「`_id >= top` の先頭 n 行」で読む。
+
+**`_id` を使い回さない。** `AUTOINCREMENT` を付けない rowid は、末尾の行を消すと同じ番号を次の行に振る。装飾も編集の履歴も `(page, _id, 列名)` を key にするので、番号が使い回されると消えた行宛ての undo が別の行に書かれる。`AUTOINCREMENT` は振った最大の番号を `sqlite_sequence` に残す。引き換えに行の追加が `sqlite_sequence` の leaf も書く。
 
 ## 5. 孤児の検査
 

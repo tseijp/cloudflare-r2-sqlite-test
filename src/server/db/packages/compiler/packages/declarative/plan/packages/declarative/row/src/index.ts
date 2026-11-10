@@ -50,7 +50,7 @@ export const row = {
         },
         import: ({ page, names, rows }: Op): Code[] => [
                 BEGIN,
-                run(sql`create table if not exists ${id(page)} ("_id" integer primary key, ${list(names.map((name: string) => sql`${id(name)} text`))})`),
+                run(sql`create table if not exists ${id(page)} ("_id" integer primary key autoincrement, ${list(names.map((name: string) => sql`${id(name)} text`))})`),
                 run(sql`insert into ${id(page)} (${list(names.map(id))}) select ${list(names.map((_: string, index: number) => sql`value ->> ${index}`))} from json_each(${JSON.stringify(rows)})`),
                 COMMIT,
                 ['refresh'],

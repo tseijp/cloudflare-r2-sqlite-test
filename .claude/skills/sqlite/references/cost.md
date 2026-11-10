@@ -86,7 +86,7 @@ page size を S、予約領域を除いた大きさを U とする。table の l
 | ----------------------- | ------------------------------------------- |
 | cell 1 つの確定         | leaf 1 枚と page 1                          |
 | 同じ本文の再確定        | 0 枚 (`WHERE … IS NOT ?` で行に触れない)    |
-| 行の追加                | 末尾の leaf と page 1。分割時は interior    |
+| 行の追加                | 末尾の leaf、`sqlite_sequence` の leaf、page 1。分割時は interior |
 | `ADD COLUMN`            | page 1 (schema) だけ                        |
 | `RENAME COLUMN`         | page 1 だけ                                 |
 | `DROP COLUMN`           | その table の全 leaf                        |

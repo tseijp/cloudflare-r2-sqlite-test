@@ -5,7 +5,7 @@ import type { Code, Op } from '@db/server-share'
 const _on = (table: typeof style | typeof mark, { page, col }: Op) => and(eq(table.page, page), eq(table.col, col))
 
 export const table = {
-        'page.add': ({ page }: Op): Code[] => [run(sql`create table ${id(page)} ("_id" integer primary key)`), ['refresh']],
+        'page.add': ({ page }: Op): Code[] => [run(sql`create table ${id(page)} ("_id" integer primary key autoincrement)`), ['refresh']],
         'page.del': ({ page }: Op): Code[] => [
                 BEGIN,
                 run(sql`drop table ${id(page)}`),
