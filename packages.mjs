@@ -24,7 +24,7 @@ const _pathsOf = (byName, deps, from) => Object.fromEntries([..._closure(byName,
 
 const _writeJson = (file, json) => writeFileSync(file, JSON.stringify(json, null, 8) + '\n')
 
-export const scanPackages = (dir = join(_ROOT, 'src')) => {
+export const scanPackages = (dir = join(_ROOT, 'test')) => {
         const here = existsSync(join(dir, 'package.json')) ? [_read(dir)] : []
         const subs = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name !== 'node_modules')
         return [...here, ...subs.flatMap((e) => scanPackages(join(dir, e.name)))]
@@ -40,6 +40,16 @@ if (_isMain) {
         const root = JSON.parse(readFileSync(join(_ROOT, 'tsconfig.json'), 'utf8'))
         const typesOf = (dir) => (root.compilerOptions.types ?? []).map((type) => (type.startsWith('.') ? _relative(join(_ROOT, type), dir) : type))
         for (const pkg of packages) _writeJson(join(pkg.dir, 'tsconfig.json'), { extends: _relative(join(_ROOT, 'tsconfig.json'), pkg.dir), compilerOptions: { types: typesOf(pkg.dir), paths: _pathsOf(byName, pkg.deps, pkg.dir) }, include: ['src'] })
-        _writeJson(join(_ROOT, 'tsconfig.json'), { ...root, compilerOptions: { ...root.compilerOptions, paths: _pathsOf(byName, topPackages(packages).map((pkg) => pkg.name), _ROOT) } })
+        _writeJson(join(_ROOT, 'tsconfig.json'), {
+                ...root,
+                compilerOptions: {
+                        ...root.compilerOptions,
+                        paths: _pathsOf(
+                                byName,
+                                topPackages(packages).map((pkg) => pkg.name),
+                                _ROOT,
+                        ),
+                },
+        })
         process.stdout.write(`${packages.length} package の tsconfig.json と root の paths を書きました\n`)
 }

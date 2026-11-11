@@ -39,7 +39,7 @@ image は CHUNK 枚 (512 page = 2 MiB) ごとに独立に圧縮して並べ、�
 
 chunk を大きくすると GET は減り、memory は増える。memory に置く chunk は ROOM 個までで、古い順に捨てる。捨てた chunk は必要になったときに取り直す。page 層が持つ memory は「ROOM × chunk + 保存前の page + delta の page」で、最後の 2 つは次節の規則で 1 chunk ぶん未満に抑える。
 
-rowid 順に追記した table の page は確保した順に file に並ぶ (leaf が続き、溢れた時点で interior が挟まる)。`_id` の範囲読みが触れるのは root から leaf までの経路と連続する leaf で、触れる chunk 数は測っていない。並べ替えや集計は全 leaf を読むので、image の chunk 数だけ GET する。
+rowid 順に追記した table の page は確保した順に file に並ぶ (leaf が続き、溢れた時点で interior が挟まる)。`_id` の範囲読みが触れるのは root から leaf までの経路と連続する leaf で、触れる chunk 数は測っていない。並べ替えや集計は全 leaf を読むので、image の chunk 数だけ GET する。chunk 数が ROOM を超える database では、読み終えた時点で先頭側の chunk を捨てているので、同じ走査を繰り返すたびに (chunk 数 − 1) 回 GET する。6 chunk の database で、全走査 1 回につき 5 回を観測した (`.bench/issues/006.md`)。稼働秒の単価は 128 MB ぶんで固定で、使った memory の量には依らないので、ROOM を増やしても請求は増えない。増えるのは memory の上限 (128 MB) までの距離である。
 
 ## 4. delta を持ち越すか、image に畳むか
 
@@ -50,7 +50,7 @@ delta を 1 つ持ち越すと、以後の open のたびに GET が 1 回増え
 畳む費用 (GET 換算)         = 1 + 2 × pages ÷ SWAP                SWAP は GET 1 回と等価な page 数
 ```
 
-累計が畳む費用に並んだ save で畳む。先の利用回数を知らずに決める規則としては、最良の決め方の 2 倍以内に収まる (ski rental)。
+累計が畳む費用に並んだ save で畳む。先の利用回数を知らずに決める規則としては、最良の決め方の 2 倍以内に収まる (ski rental)。累計の式は、save 1 回につき open が 1 回ある利用での値である。save が続く利用と open が続く利用での比は測っていない (9 節の「最良」で測る)。
 
 | pages             | 畳むまでの delta 数 |
 | ----------------- | ------------------- |
@@ -97,3 +97,41 @@ page size を S、予約領域を除いた大きさを U とする。table の l
 ## 8. yjs
 
 view は問い合わせ結果を 1 行 1 key で持つ。key は `<view 名>/<連番>` で、scroll しても key は増えない (同じ連番を上書きする)。行の `_id` を key にすると、通り過ぎた行の数だけ削除済みの key が doc に残る。1 cell の編集で送られるのは、その行の key 1 つの上書きである。undo の履歴は `edit` map だけを対象にするので、窓の入れ替えは履歴に入らない。
+
+## 9. 丸ごと保存、最良との比較
+
+検証 (score.md 5 節) が scenario の費用を比べるための単位と式である。GET 1 回を 1 として数える。
+
+```
+費用 (GET 換算) = get の回数 + 12.5 × put の回数 + 転送 page ÷ SWAP
+```
+
+PUT は GET の 12.5 倍 (4.50 ÷ 0.36)、delete は 0、転送は SWAP page で GET 1 回ぶんである (4 節と同じ置き方)。稼働秒と memory は入れない。
+
+比べる相手は 2 つある。
+
+| 相手       | 中身                                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| 丸ごと保存 | 変化のある save のたびに database 全体を 1 つの object として put し、open で全体を get する方式                 |
+| 最良       | 同じ scenario で、変化のある save ごとの push / merge の選び方を、後から見て合計が最も小さくなるように決めたもの |
+
+命令 1 つの式は、命令の前の `Stat` (contract.md 6 節) から決まる。
+
+| 命令                           | この方式の回数             | この方式の転送 page    | 丸ごと保存の回数 | 丸ごと保存の転送 page |
+| ------------------------------ | -------------------------- | ---------------------- | ---------------- | --------------------- |
+| `open` (`base` ≤ CHUNK)        | get 1                      | `base`                 | get 1            | `base`                |
+| `open` (`base` > CHUNK)        | get 2 + `deltas`           | CHUNK + `patch`        | get 1            | `base`                |
+| SQL の読み                     | memory に無い chunk ごとに get 1 | その chunk の page 数 | 0               | 0                     |
+| `save` (`dirty` = 0)           | 0                          | 0                      | 0                | 0                     |
+| `save` (push)                  | put 1                      | `dirty`                | put 1            | `pages`               |
+| `save` (merge、`base` ≤ CHUNK) | put 1                      | `pages`                | put 1            | `pages`               |
+| `save` (merge、`base` > CHUNK) | get 1、put 1               | `base` + `pages`       | put 1            | `pages`               |
+
+| 規則         | 内容                                                                                                                                                              |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 観測の転送   | get で受けた byte と put で送った byte の合計 ÷ PAGE。圧縮後の値である                                                                                            |
+| 式の転送     | 表の転送 page は圧縮前の値である。観測と比べるときは、この方式、丸ごと保存、最良のどれにも、その時点の store の image の圧縮比 (image の byte ÷ (`base` × PAGE)) を掛ける |
+| SQL の読み   | どの chunk が memory にあるかは公開面から見えないので、式の値には観測した get をそのまま入れる。丸ごと保存では 0 である                                           |
+| 最良の制約   | 製品と同じ。delta は `base` > CHUNK のときだけ、save の後の `patch + dirty` は CHUNK 未満、delta は SLOTS 個まで。SQL の読みは選び方に依らないものとして除く      |
+| 4 節との関係 | 4 節の「最良の 2 倍以内」は、この最良に対する比で確かめる                                                                                                         |
+| 入れないもの | memory の差 (この方式は ROOM × CHUNK + 保存前の page + delta の page、丸ごと保存は全 page) と稼働秒                                                               |

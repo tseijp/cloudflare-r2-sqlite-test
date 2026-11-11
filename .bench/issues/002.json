@@ -1,0 +1,12 @@
+{
+        "note": "002: まだ無い行 (row 1) への cell が履歴に残り、row.add でその _id の行ができた後の undo が null を、redo が最初の本文 ('ghost') をその行に書く。期待 (model) は行の本文が null のまま",
+        "steps": [
+                { "op": { "type": "page.add", "page": "p" } },
+                { "op": { "type": "col.add", "page": "p", "col": "a" } },
+                { "op": { "type": "cell", "id": "u1", "page": "p", "row": 1, "col": "a", "text": "ghost", "marks": [] } },
+                { "op": { "type": "row.add", "page": "p" } },
+                { "op": { "type": "undo", "id": "u1" } },
+                { "op": { "type": "redo", "id": "u1" } },
+                { "op": { "type": "sql", "text": "select * from \"p\"" } }
+        ]
+}

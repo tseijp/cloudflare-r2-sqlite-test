@@ -1,0 +1,17 @@
+{
+        "note": "003: image (5 chunk) を書き直す merge の put が、書いた後に reject (faults: put after) → 次の save は get(0, 0, 1) で tag の違いを見て store diverged で reject し put を呼ばない → memory に無い chunk を読む sql が disk I/O error → open で store の内容 (書けていた image) から復帰し、reject の後の編集 ('lost') は無い。rows.fill = [行数, 1 行の文字数]",
+        "steps": [
+                { "op": { "type": "page.add", "page": "p" } },
+                { "op": { "type": "col.add", "page": "p", "col": "a" } },
+                { "op": { "type": "import", "page": "p", "names": ["a"], "rows": { "fill": [2300, 4000] } } },
+                { "op": { "type": "save" } },
+                { "op": { "type": "import", "page": "p", "names": ["a"], "rows": { "fill": [600, 4000] } } },
+                { "op": { "type": "save" }, "faults": [{ "call": "put", "kind": "after" }] },
+                { "op": { "type": "cell", "id": "u1", "page": "p", "row": 1, "col": "a", "text": "lost", "marks": [] } },
+                { "op": { "type": "save" } },
+                { "op": { "type": "sql", "text": "select count(*) from \"p\"" } },
+                { "op": { "type": "open" } },
+                { "op": { "type": "sql", "text": "select count(*) from \"p\"" } },
+                { "op": { "type": "sql", "text": "select count(*) from \"p\" where \"a\" = 'lost'" } }
+        ]
+}

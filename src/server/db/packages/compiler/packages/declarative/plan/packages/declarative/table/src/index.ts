@@ -12,7 +12,7 @@ export const table = {
                 run(db.delete(style).where(eq(style.page, page))),
                 run(db.delete(mark).where(eq(mark.page, page))),
                 COMMIT,
-                ['drop', `page:${page}`],
+                ['drop', `page:${page.toLowerCase()}`],
                 ['refresh'],
                 ['forget'],
         ],

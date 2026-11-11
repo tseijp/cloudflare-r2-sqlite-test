@@ -1,0 +1,11 @@
+{
+        "note": "001: 2 writer の merge と push の交差。形 1 (step 4) = B が push した後に A (その push を知らない) が merge する。A の merge の delete([1..SLOTS]) が B の delta 1 を消し、B の save の内容は store に残らない。形 2 (step 5) = A が merge した後に B (その merge を知らない) が push する。B の delta 1 は鎖の外で、次の open が消す。どちらも後から save した側が解決する (期待は reject)。rows.fill = [行数, 1 行の文字数]",
+        "steps": [
+                { "op": { "type": "page.add", "page": "p" } },
+                { "op": { "type": "col.add", "page": "p", "col": "a" } },
+                { "op": { "type": "import", "page": "p", "names": ["a"], "rows": { "fill": [1200, 2000] } } },
+                { "op": { "type": "save" } },
+                { "ctl": "rival", "first": "M", "big": { "type": "import", "page": "p", "names": ["a"], "rows": { "fill": [1200, 2000] } } },
+                { "ctl": "rival", "first": "A", "big": { "type": "import", "page": "p", "names": ["a"], "rows": { "fill": [1200, 2000] } } }
+        ]
+}

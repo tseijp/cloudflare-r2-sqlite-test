@@ -68,6 +68,8 @@ erDiagram
 
 **装飾の key を名前にする。** `(page 名, _id, 列名)` は schema と行からそのまま読める。引き換えに列名の変更が装飾の update を伴う。
 
+**装飾の名前の照合を識別子に合わせる。** SQLite は table 名と列名の ASCII の大文字小文字を区別しない。`update "p" set "a" = …` は列 `A` に当たる。装飾の `page` と `col` を既定の照合 (BINARY) のままにすると、本文は書けて装飾は別の key になり、列を消しても装飾が残る。`page` と `col` を `COLLATE NOCASE` にして、同じ規則で当たるようにする。
+
 **外部 key を使わない。** page ごとに table が違うので参照先を書けない。行、列、page の削除は装飾の delete と同じ transaction に並べる。装飾の insert は `where exists (その行) and exists (その列)` を付けた `insert … select` にして、無い位置には書けないようにする。
 
 **page table に index を作らない。** index は行の追加で書く page を増やし、`DROP COLUMN` を拒む。窓は rowid の範囲読みなので index は要らない。並べ替えと絞り込みは全走査になる。
