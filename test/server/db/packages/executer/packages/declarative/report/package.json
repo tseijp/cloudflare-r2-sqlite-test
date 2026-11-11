@@ -1,0 +1,11 @@
+{
+        "name": "@test/server-executer-report",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/server-share": "workspace:*",
+                "@test/server-executer-share": "workspace:*",
+                "@test/server-executer-report-region": "workspace:*"
+        }
+}

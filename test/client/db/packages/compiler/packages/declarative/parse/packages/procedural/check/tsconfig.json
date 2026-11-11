@@ -1,0 +1,17 @@
+{
+        "extends": "../../../../../../../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../../../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@test/client-share": [
+                                "../../../../../../../share/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

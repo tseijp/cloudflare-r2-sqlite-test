@@ -58,6 +58,8 @@ flowchart LR
 
 親は子の package を import でき、子は祖先の `share` だけを import できる。兄弟は import し合わない。境界は各 `package.json` の `dependencies` で、vite の plugin がそれ以外の import を拒む。
 
+検証 code は `test/` の `@test/server` と `@test/client` で、同じ規則で分ける。`test/` の package は `src/` の package を import しない。`.bench/` の scenario が両方を import して結ぶ (score.md 8 節)。
+
 ## 3. 不変条件
 
 ### 3.1. store の内容は、常に commit 済みの transaction の境目である
@@ -123,7 +125,7 @@ compiler は `(op, stat)` から命令列を返すだけで、何も読まず何
 | 方眼紙、窓、装飾の付き先、undo                 | `references/grid.md`     |
 | 外部の事実と確かめ方                           | `references/errata.md`   |
 | 検証に使うデータ                               | `references/fixtures.md` |
-| simulation の境界、軸、台帳                    | `references/score.md`    |
+| 検証の 2 つの性質、状態空間、判定、構成、台帳  | `references/score.md`    |
 
 ## 6. 完了と言える条件
 

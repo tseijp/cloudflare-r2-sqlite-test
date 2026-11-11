@@ -83,4 +83,4 @@ miniflare は R2 の模擬で、本物の R2 で確かめたものではない�
 
 ## 7. 確かめていないこと
 
-workerd の上での起動、本物の R2 での条件付き put、転送速度 (SWAP の根拠)、gzip の圧縮比、範囲読みが触れる chunk 数、Asyncify の stack の深さの余裕。
+workerd の上での起動、本物の R2 での条件付き put、転送速度 (SWAP の根拠)、gzip の圧縮比、範囲読みが触れる chunk 数、Asyncify の stack の深さの余裕、同じ room の Durable Object が 2 つ同時に動く条件と頻度、reject を返した put が store に入っている頻度、Durable Object の memory の合計。

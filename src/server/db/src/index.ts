@@ -23,4 +23,6 @@ export const createDb = (input: Input) => {
         }
 }
 
+export { CHUNK, LIMIT, PAGE, ROOM, ROWS, SLOTS, SWAP } from '@db/server-share'
+
 export type { Code, Input, Op, Part, Stat, Store } from '@db/server-share'

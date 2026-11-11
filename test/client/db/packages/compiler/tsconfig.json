@@ -1,0 +1,35 @@
+{
+        "extends": "../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@test/client-share": [
+                                "../share/src/index.ts"
+                        ],
+                        "@test/client-compiler-parse": [
+                                "./packages/declarative/parse/src/index.ts"
+                        ],
+                        "@test/client-compiler-parse-check": [
+                                "./packages/declarative/parse/packages/procedural/check/src/index.ts"
+                        ],
+                        "@test/client-compiler-plan": [
+                                "./packages/declarative/plan/src/index.ts"
+                        ],
+                        "@test/client-compiler-plan-explore": [
+                                "./packages/declarative/plan/packages/declarative/explore/src/index.ts"
+                        ],
+                        "@test/client-compiler-plan-share": [
+                                "./packages/declarative/plan/packages/procedural/share/src/index.ts"
+                        ],
+                        "@test/client-compiler-plan-ledger": [
+                                "./packages/declarative/plan/packages/declarative/ledger/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

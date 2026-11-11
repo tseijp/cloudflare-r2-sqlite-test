@@ -1,0 +1,9 @@
+{
+        "name": "@test/server-executer-share",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/server-share": "workspace:*"
+        }
+}

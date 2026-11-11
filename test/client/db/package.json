@@ -1,0 +1,11 @@
+{
+        "name": "@test/client",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/client-compiler": "workspace:*",
+                "@test/client-executer": "workspace:*",
+                "@test/client-share": "workspace:*"
+        }
+}

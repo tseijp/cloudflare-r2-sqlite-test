@@ -1,0 +1,11 @@
+{
+        "name": "@test/server-compiler-plan-order",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/server-share": "workspace:*",
+                "@test/server-compiler-plan-share": "workspace:*",
+                "@test/server-compiler-plan-order-data": "workspace:*"
+        }
+}

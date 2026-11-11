@@ -1,0 +1,35 @@
+{
+        "extends": "../../../../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@test/server-share": [
+                                "../../../../share/src/index.ts"
+                        ],
+                        "@test/server-executer-share": [
+                                "../../procedural/share/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-claim": [
+                                "./packages/declarative/claim/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-share": [
+                                "./packages/procedural/share/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-count": [
+                                "./packages/declarative/count/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-safety": [
+                                "./packages/declarative/safety/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-surface": [
+                                "./packages/declarative/surface/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

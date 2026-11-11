@@ -1,0 +1,11 @@
+{
+        "name": "@test/server-executer-judge-claim",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/server-share": "workspace:*",
+                "@test/server-executer-share": "workspace:*",
+                "@test/server-executer-judge-share": "workspace:*"
+        }
+}

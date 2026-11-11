@@ -1,0 +1,17 @@
+{
+        "name": "@test/server-executer",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/server-share": "workspace:*",
+                "@test/server-executer-book": "workspace:*",
+                "@test/server-executer-fleet": "workspace:*",
+                "@test/server-executer-judge": "workspace:*",
+                "@test/server-executer-memory": "workspace:*",
+                "@test/server-executer-pilot": "workspace:*",
+                "@test/server-executer-report": "workspace:*",
+                "@test/server-executer-store": "workspace:*",
+                "@test/server-executer-share": "workspace:*"
+        }
+}

@@ -1,0 +1,7 @@
+{
+        "name": "@test/client-share",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {}
+}

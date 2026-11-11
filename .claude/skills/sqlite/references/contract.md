@@ -6,7 +6,7 @@
 
 | package      | 入口 file                     | export                                             |
 | ------------ | ----------------------------- | -------------------------------------------------- |
-| `@db/server` | `src/server/db/src/index.ts`  | `createDb(input)` と型 `Input / Op / Code / Stat / Store / Part` |
+| `@db/server` | `src/server/db/src/index.ts`  | `createDb(input)`、10 節の定数 (`PAGE` `CHUNK` `ROOM` `LIMIT` `SWAP` `SLOTS` `ROWS`)、型 `Input / Op / Code / Stat / Store / Part` |
 | `@db/client` | `src/client/db/src/index.tsx` | `createGrid(input)` と型 `Input / Event / Code / Snap / State`   |
 
 package 名から file への対応は各 `package.json` の `name` と `exports` で決まる。package 内の相対 import は拡張子 `.ts` / `.tsx` 付きで書かれている。
@@ -17,11 +17,11 @@ package 名から file への対応は各 `package.json` の `name` と `exports
 | `topPackages(packages)`  | 他の package の中に無い package (`@db/server`、`@db/client`、`@test/server`、`@test/client`)                                                 |
 | `packages()`             | vite の plugin。package 名を入口 file に解決し、`dependencies` に無い package の import と、相対 path で他の package の中へ入る import を拒む |
 
-`node packages.mjs` は、`test/*/db` から下の directory (`packages/<名前>` と `packages/{declarative,procedural}/<名前>`) を package として `package.json` を書き、`src/index.ts` が無ければ空の入口を置き、全 package の `tsconfig.json` と root の `tsconfig.json` の `paths` を書く。`test/` の package 名は `@test/<client か server>-<途中の package 名>` で、`dependencies` は「祖先の `share` と自分の子」になる。`@test/` で始まらない `dependencies` (`@db/server` など) は書き直しても残る。`src/` の `package.json` は書き換えない。
+`node packages.mjs` は、`test/*/db` から下の directory (`packages/<名前>` と `packages/{declarative,procedural}/<名前>`) を package として `package.json` を書き、`src/index.ts` が無ければ空の入口を置き、全 package の `tsconfig.json` と root の `tsconfig.json` の `paths` を書く。`test/` の package 名は `@test/<client か server>-<途中の package 名>` で、`dependencies` は「祖先の `share` と自分の子」だけになり、実行のたびに directory から書き直される。`src/` の `package.json` は書き換えない。
 
-検証 code は製品を package 名 (`@db/server`) で import する。import する package の `package.json` の `dependencies` に `@db/server` を書く。package の外の file (`test/` 直下など) は、`topPackages` の 4 つを import できる。
+`test/` の package は `@db/*` を `dependencies` に持てないので、製品を import できない。製品と検証を結ぶのは package の外の file (`.bench/` の scenario) で、`topPackages` の 4 つを import できる。
 
-`node_modules/.bin` に `vite` (8.1.3)、`tsx`、`esbuild` がある。vitest は入っていない。vite の node API に `createServer`、`createServerModuleRunner`、`runnerImport` がある。`test/vite.config.ts` は `packages()` だけを plugin に持つ。
+`node .bench/run.mjs <file …>` は、file ごとに子 process を起こし、`test/vite.config.ts` (`packages()` だけを plugin に持つ) の vite の module runner で file を import して、default export (scenario の記録) を 1 行にまとめて出す。未知の崩れか異常終了があれば exit 1、打ち切りは exit 124 である。`node .bench/run.mjs .bench/seed.ts <from>-<to> [steps] [shrink]` は、seed の範囲について scenario の書き出し、実行、縮め、台帳までを行う。`node_modules/.bin` に `vite` (8.1.3)、`tsx`、`esbuild` がある。vitest は入っていない。
 
 ## 2. `createDb({ wasm, store, doc })`
 
@@ -83,6 +83,8 @@ merge の `delete` は、製品が知っている delta の数に依らず、番
 | image の `put` が書いた後に reject した           | `open` し直すまで、memory に無い chunk を読む SQL が `disk I/O error` で失敗する (image の tag が覚えている tag と違うため。`.bench/issues/003.md`) |
 | 別の writer が image を書き直した                 | 古い側の instance は、`open` し直すまで、memory に無い chunk を読む SQL が `disk I/O error` で失敗する (同じ理由)。古い側の merge は `image changed` で reject する |
 | merge の `put` が成功した後の `delete` が reject した | その `save` は成功として解決する。次に store を呼ぶ `save` (`dirty` が 0 でない) の最初に、もう 1 回 `delete` する。`dirty` が 0 の `save` は store を呼ばないので、それまで delta は残る |
+| 作り直した直後の instance の `open` が `get` の失敗で reject した | その instance は開いていない。`open` 以外の命令は reject し (`Cannot read properties of null`)、`save` は store を呼ばずに解決する。`open` をやり直すと store の内容で開く |
+| 開いていた instance の `open` が delta の `get` の失敗で reject した | SQL の内容は `open` の前のままで、`stat()` の `deltas` と `patch` だけが 0 に戻る。次の push は `store conflict` で reject する。`open` をやり直すと続行できる (`.bench/issues/007.md`) |
 
 writer が 2 つになったときに止まるのは、同じ object を書く save 同士だけである。merge は image の tag だけを、push はその delta 番号が空であることだけを条件にする。別の writer の push を知らない merge と、別の writer の merge を知らない push は通り、片方の delta が鎖の外になって次の `open` で消える。store は開ける状態のままである (`.bench/issues/001.md`)。
 

@@ -18,5 +18,5 @@ export const toRows = (text: string): string[][] => {
                 if (char === '\n') rows.push([])
         }
         if (cell !== '' || rows[rows.length - 1].length > 0) rows[rows.length - 1].push(cell)
-        return rows.filter((row) => row.length > 0)
+        return rows.filter((row) => row.join(',') !== '')
 }
