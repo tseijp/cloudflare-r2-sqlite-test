@@ -21,15 +21,14 @@ export const createStorage = (store: Store) => {
                 _unsure = -1
                 _stale = []
         }
-        const _sweep = async () => {
+        const _confirm = async () => {
+                const seen = _unsure < 0 ? null : await store.get(_unsure, 0, 1)
+                const isSame = _unsure < 0 || (seen?.tag ?? '') === (_unsure ? '' : _tag)
+                if (!isSame) return _fail('store diverged')
                 if (_stale.length) await store.delete(_stale)
                 _stale = []
         }
         const _put = async (seq: number, bytes: Uint8Array, tag: string) => {
-                const seen = _unsure < 0 ? null : await store.get(_unsure, 0, 1)
-                const isSame = _unsure < 0 || (seen?.tag ?? '') === (_unsure ? '' : _tag)
-                if (!isSame) return _fail('store diverged')
-                await _sweep()
                 _unsure = seq
                 const next = await store.put(seq, bytes, tag)
                 _unsure = -1
@@ -67,19 +66,21 @@ export const createStorage = (store: Store) => {
                         return part ? chunk(0, part.bytes) : null
                 },
                 async push(commit: number, pages: Delta['pages']) {
+                        await _confirm()
                         _tail = await _put(_deltas + 1, await encodeDelta({ prev: _tail, commit, pages }), '')
                         _deltas += 1
                         _patch += pages.length
                 },
                 async merge(pages: number, compose: (index: number, base: Uint8Array | null) => Uint8Array) {
-                        const old = _sizes.length > 1 ? await store.get(0) : null
-                        const stale = Array.from({ length: _deltas }, (_, index) => index + 1)
+                        const stale = Array.from({ length: _sizes.length > 1 ? SLOTS : 0 }, (_, index) => index + 1)
                         const parts: Uint8Array[] = []
+                        await _confirm()
+                        const old = _sizes.length > 1 ? await store.get(0) : null
                         if (old && old.tag !== _tag) return _fail('image changed')
                         for (let index = 0; index * CHUNK < pages; index++) parts.push(await pack(compose(index, old && index < _sizes.length ? await chunk(index, old.bytes) : null)))
                         _reset(await _put(0, encodeImage(pages, parts), _tag), pages, parts.map((part) => part.length))
                         _stale = stale
-                        await _sweep()
+                        await _confirm().catch(() => {})
                 },
                 stat: () => ({ base: _pages, deltas: _deltas, patch: _patch }),
         }

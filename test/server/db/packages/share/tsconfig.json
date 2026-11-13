@@ -1,0 +1,13 @@
+{
+        "extends": "../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {}
+        },
+        "include": [
+                "src"
+        ]
+}

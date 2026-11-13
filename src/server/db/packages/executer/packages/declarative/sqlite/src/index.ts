@@ -16,6 +16,7 @@ export const createSqlite = (wasm: WebAssembly.Module, vfs: any) => {
                 for await (const stmt of _api.statements(_db, text)) {
                         _api.bind_collection(stmt, params)
                         found.names = _api.column_names(stmt)
+                        found.rows = []
                         while (found.rows.length < limit && (await _api.step(stmt)) === SQLite.SQLITE_ROW) found.rows.push(_api.row(stmt))
                 }
                 return found

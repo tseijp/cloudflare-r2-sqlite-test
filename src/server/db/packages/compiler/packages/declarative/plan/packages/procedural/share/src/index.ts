@@ -26,7 +26,7 @@ export const run = (built: any): Code => ['sql', ...query(built)]
 
 export const create = (table: SQLiteTable) => {
         const { name, columns, primaryKeys } = getTableConfig(table)
-        const cols = columns.map((column) => sql`${id(column.name)} ${sql.raw(column.getSQLType())} not null`)
+        const cols = columns.map((column) => sql`${id(column.name)} ${sql.raw(column.getSQLType())} ${sql.raw(['page', 'col'].includes(column.name) ? 'collate nocase ' : '')}not null`)
         return sql`create table if not exists ${id(name)} (${list(cols)}, primary key (${list(primaryKeys[0].columns.map((column) => id(column.name)))})) without rowid`
 }
 

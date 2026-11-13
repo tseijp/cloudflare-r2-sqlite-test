@@ -1,0 +1,23 @@
+{
+        "extends": "../../../../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@test/server-share": [
+                                "../../../../share/src/index.ts"
+                        ],
+                        "@test/server-executer-share": [
+                                "../../procedural/share/src/index.ts"
+                        ],
+                        "@test/server-executer-book-ratio": [
+                                "./packages/procedural/ratio/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

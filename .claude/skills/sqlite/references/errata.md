@@ -17,8 +17,10 @@
 | `xFileSize` の出力先は `setBigInt64(0, n, true)`、`xOpen` / `xAccess` / `xCheckReservedLock` は `setInt32(0, n, true)` | source |
 | async build は登録時に VFS へ `handleAsync` を差し込む。中身は `f().then(wakeUp)` で、`f` が reject すると wasm は二度と再開しない。VFS の非同期処理は必ず resolve させ、失敗は `SQLITE_IOERR` を返り値にする | source |
 | `instantiateWasm(imports, receive)` は `receive(instance)` の返り値を返さなければならない。`instance.exports` を返すと Asyncify の包みが外れる | source |
+| Asyncify は再開のとき、中断した JS の関数 (`xRead`) を頭からもう一度呼ぶ。2 度目も `handleAsync` を呼ぶ経路を通らないと wasm が `unreachable` で落ちる。「cache にあれば同期、無ければ非同期」と分ける VFS は、非同期を始めたことを覚えておき、再入のときも `handleAsync` を呼ぶ | 実行 (simulation で観測) |
 | `set_authorizer(db, f, userData)` の `f` は `(userData, actionCode, …)` で呼ばれ、`f` に null を渡すと外れる     | source   |
 | `get_autocommit(db)` がある                                                                                       | source   |
+| `statements(db, text)` は text の中の文を 1 つずつ返す。行を 1 つの配列に溜めると、複数文の結果が混ざる。文ごとに配列を作り直す | 実行 (simulation で観測) |
 
 ## 2. SQLite
 
@@ -32,6 +34,7 @@
 | `insert … select … where … on conflict (…) do update` は、select に where があれば構文が曖昧にならない       | 一次資料 |
 | authorizer は prepare の時点で呼ばれ、`SQLITE_DENY` を返すとその文は prepare に失敗する                      | 一次資料 |
 | `pragma_table_info(?)` は table 値関数で、引数を bind できる                                                 | 一次資料 |
+| `AUTOINCREMENT` の無い `INTEGER PRIMARY KEY` は「今ある最大の rowid + 1」を振る。末尾の行を消すと同じ番号が次の行に付く。`AUTOINCREMENT` は振った最大値を `sqlite_sequence` に持ち、使い回さない | 実行 (simulation で観測) と一次資料 |
 
 ## 3. drizzle-orm 0.45.2
 
@@ -80,4 +83,4 @@ miniflare は R2 の模擬で、本物の R2 で確かめたものではない�
 
 ## 7. 確かめていないこと
 
-workerd の上での起動、本物の R2 での条件付き put、転送速度 (SWAP の根拠)、gzip の圧縮比、範囲読みが触れる chunk 数、Asyncify の stack の深さの余裕。
+workerd の上での起動、本物の R2 での条件付き put、転送速度 (SWAP の根拠)、gzip の圧縮比、範囲読みが触れる chunk 数、Asyncify の stack の深さの余裕、同じ room の Durable Object が 2 つ同時に動く条件と頻度、reject を返した put が store に入っている頻度、Durable Object の memory の合計。

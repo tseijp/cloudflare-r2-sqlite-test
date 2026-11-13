@@ -1,0 +1,98 @@
+{
+        "extends": "../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@test/server-compiler": [
+                                "./packages/compiler/src/index.ts"
+                        ],
+                        "@test/server-share": [
+                                "./packages/share/src/index.ts"
+                        ],
+                        "@test/server-compiler-parse": [
+                                "./packages/compiler/packages/declarative/parse/src/index.ts"
+                        ],
+                        "@test/server-compiler-parse-check": [
+                                "./packages/compiler/packages/declarative/parse/packages/procedural/check/src/index.ts"
+                        ],
+                        "@test/server-compiler-plan": [
+                                "./packages/compiler/packages/declarative/plan/src/index.ts"
+                        ],
+                        "@test/server-compiler-plan-chaos": [
+                                "./packages/compiler/packages/declarative/plan/packages/declarative/chaos/src/index.ts"
+                        ],
+                        "@test/server-compiler-plan-share": [
+                                "./packages/compiler/packages/declarative/plan/packages/procedural/share/src/index.ts"
+                        ],
+                        "@test/server-compiler-plan-claim": [
+                                "./packages/compiler/packages/declarative/plan/packages/declarative/claim/src/index.ts"
+                        ],
+                        "@test/server-compiler-plan-life": [
+                                "./packages/compiler/packages/declarative/plan/packages/declarative/life/src/index.ts"
+                        ],
+                        "@test/server-compiler-plan-order": [
+                                "./packages/compiler/packages/declarative/plan/packages/declarative/order/src/index.ts"
+                        ],
+                        "@test/server-compiler-plan-order-data": [
+                                "./packages/compiler/packages/declarative/plan/packages/declarative/order/packages/procedural/data/src/index.ts"
+                        ],
+                        "@test/server-executer": [
+                                "./packages/executer/src/index.ts"
+                        ],
+                        "@test/server-executer-book": [
+                                "./packages/executer/packages/declarative/book/src/index.ts"
+                        ],
+                        "@test/server-executer-share": [
+                                "./packages/executer/packages/procedural/share/src/index.ts"
+                        ],
+                        "@test/server-executer-book-ratio": [
+                                "./packages/executer/packages/declarative/book/packages/procedural/ratio/src/index.ts"
+                        ],
+                        "@test/server-executer-fleet": [
+                                "./packages/executer/packages/declarative/fleet/src/index.ts"
+                        ],
+                        "@test/server-executer-fleet-state": [
+                                "./packages/executer/packages/declarative/fleet/packages/procedural/state/src/index.ts"
+                        ],
+                        "@test/server-executer-judge": [
+                                "./packages/executer/packages/declarative/judge/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-claim": [
+                                "./packages/executer/packages/declarative/judge/packages/declarative/claim/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-share": [
+                                "./packages/executer/packages/declarative/judge/packages/procedural/share/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-count": [
+                                "./packages/executer/packages/declarative/judge/packages/declarative/count/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-safety": [
+                                "./packages/executer/packages/declarative/judge/packages/declarative/safety/src/index.ts"
+                        ],
+                        "@test/server-executer-judge-surface": [
+                                "./packages/executer/packages/declarative/judge/packages/declarative/surface/src/index.ts"
+                        ],
+                        "@test/server-executer-memory": [
+                                "./packages/executer/packages/declarative/memory/src/index.ts"
+                        ],
+                        "@test/server-executer-pilot": [
+                                "./packages/executer/packages/declarative/pilot/src/index.ts"
+                        ],
+                        "@test/server-executer-report": [
+                                "./packages/executer/packages/declarative/report/src/index.ts"
+                        ],
+                        "@test/server-executer-report-region": [
+                                "./packages/executer/packages/declarative/report/packages/procedural/region/src/index.ts"
+                        ],
+                        "@test/server-executer-store": [
+                                "./packages/executer/packages/declarative/store/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

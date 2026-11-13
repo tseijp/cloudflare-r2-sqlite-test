@@ -217,7 +217,7 @@ SQLite 自体には戻す仕組みを持たせない方針。`cell` と `style` 
 
 ### 4.10. 検証
 
-検証は決定論的 simulation で行う方針。seed 1 つから操作列・障害・作り直しの時点を生成し、同じ seed が同じ結果を再現。障害は object storage の境界 (get / put / delete の失敗、put の条件不一致、途中での作り直し) にだけ注入。期待値は製品とは別に持ち、永続・原子・回数・鎖・単一書き・上限・compile・装飾・窓・履歴の 10 軸で判定。生成 code は `test/`、入口は `.bench/run.mjs`、結果の台帳は `.bench/out/`。境界・軸・台帳の定義は `.claude/skills/sqlite/references/score.md`、検証 code が触れてよい面は `contract.md`。
+検証は決定論的 simulation で行う方針。確かめる性質は安全性 (image と delta の鎖が常に 1 つの database で、成功した save を失わない) と費用 (store の呼び出しの回数と転送量が式どおりで、丸ごと保存より少ない) の 2 つ。scenario は検証の API を呼ぶ手の列で、手で書いたもの (`.bench/issues/`、`.bench/hand/`) と seed から生成したものが同じ形式。期待値は手で書いた値か、同じ製品の別の instance の観測で、製品の機能を検証 code に書き直さない方針。`test/server/db` (`@test/server`) が simulation を実行し、`test/client/db` (`@test/client`) が seed から scenario を生成し、製品と検証を結ぶのは `.bench/sim.ts` の 1 file。scenario の実行は `node .bench/run.mjs <file …>`、seed の範囲の探索は `node .bench/run.mjs .bench/seed.ts <from>-<to>`、結果の台帳は `.bench/out/`。性質・状態空間・判定・台帳の定義は `.claude/skills/sqlite/references/score.md`、検証 code が触れてよい面は `contract.md`。
 
 ### 4.11. 範囲外と制約
 
@@ -246,4 +246,4 @@ server 側・client 側・アプリ 3 file・規約文書は実装済み。実�
 | table の正規形と崩し方                | `.claude/skills/sqlite/references/tables.md`   |
 | 方眼紙、窓、装飾、undo                | `.claude/skills/sqlite/references/grid.md`     |
 | 外部の事実と確かめ方                  | `.claude/skills/sqlite/references/errata.md`   |
-| 検証の境界、軸、台帳                  | `.claude/skills/sqlite/references/score.md`    |
+| 検証の性質、状態空間、判定、台帳      | `.claude/skills/sqlite/references/score.md`    |

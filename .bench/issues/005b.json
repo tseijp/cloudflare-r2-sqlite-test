@@ -1,0 +1,8 @@
+{
+        "note": "005b: 終わらない sql (上限の無い再帰 CTE)。止める仕組みが無いので process ごと止まる。`timeout 20 node_modules/.bin/tsx .bench/run.mjs repro .bench/issues/005b.json; echo exit $?` は何も出力せずに exit 124 (timeout による kill) になる (repro の出力は操作列が終わった後に書くため)",
+        "steps": [
+                { "op": { "type": "page.add", "page": "p" } },
+                { "op": { "type": "sql", "text": "select 1" } },
+                { "op": { "type": "sql", "text": "with recursive c(n) as (select 1 union all select n + 1 from c) select count(*) from c" }, "also": { "type": "sql", "text": "select 1" } }
+        ]
+}

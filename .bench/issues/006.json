@@ -1,0 +1,66 @@
+{
+	"note": "006: 圧縮前 約 11 MiB (11,000 行 × 1,000 文字、6 chunk) の page を import して save、open した後、全走査の sql (count / total) を送るたびに、memory に無い chunk (ROOM = 4 個 8 MiB を超えた分) を store から get で読み直す。_id の範囲だけを読む sql では読み直しが少ない",
+	"steps": [
+		{
+			"op": {
+				"type": "import",
+				"page": "big",
+				"names": [
+					"a"
+				],
+				"rows": {
+					"fill": [
+						11000,
+						1000
+					]
+				}
+			}
+		},
+		{
+			"op": {
+				"type": "save"
+			}
+		},
+		{
+			"op": {
+				"type": "open"
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select count(*), total(length(\"a\")) from \"big\""
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select count(*), total(length(\"a\")) from \"big\""
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select count(*), total(length(\"a\")) from \"big\""
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select * from \"big\" where \"_id\" >= 100 order by \"_id\" limit 5"
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select * from \"big\" where \"_id\" >= 100 order by \"_id\" limit 5"
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select * from \"big\" where \"_id\" >= 100 order by \"_id\" limit 5"
+			}
+		}
+	]
+}

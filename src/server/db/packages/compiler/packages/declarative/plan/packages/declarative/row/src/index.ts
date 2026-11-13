@@ -8,8 +8,8 @@ const _at = (table: typeof style | typeof mark, { page, row }: Op) => and(eq(tab
 const _in = (table: typeof style | typeof mark, op: Op) => and(_at(table, op), eq(table.col, op.col))
 
 const _track = (op: Op, key: string, read: any, value: string, write: Code[]): Code[] => {
-        if (op.isEcho) return write
-        return [['fill', key, ...query(read)], ['set', key, value, op.id], ...write]
+        if (op.isEcho) return [...write, ['refresh']]
+        return [['fill', key, ...query(read)], ...write, ['set', key, value, op.id], ['refresh']]
 }
 
 const _runs = ({ text, marks }: Op): any[][] => marks.map(([start, stop, name, value]: any[]) => [start, Math.min(stop, (text ?? '').length), name, value]).filter(([start, stop]: number[]) => start < stop)
@@ -20,13 +20,12 @@ const _cell = (op: Op): Code[] => [
         run(db.delete(mark).where(_in(mark, op))),
         ..._runs(op).map(([start, stop, name, value]) => run(sql`insert into "_mark" ("page", "row", "col", "start", "name", "stop", "value") select ${op.page}, ${op.row}, ${op.col}, ${start}, ${name}, ${stop}, ${value} where exists (select 1 from ${id(op.page)} where "_id" = ${op.row})`)),
         COMMIT,
-        ['refresh'],
 ]
 
 const _style = (op: Op): Code[] => {
-        const isHere = sql`(${op.row} = 0 or exists (select 1 from ${id(op.page)} where "_id" = ${op.row})) and exists (select 1 from pragma_table_info(${op.page}) where "name" = ${op.col})`
-        if (op.value === null) return [run(db.delete(style).where(and(_in(style, op), eq(style.name, op.name)))), ['refresh']]
-        return [run(sql`insert into "_style" ("page", "row", "col", "name", "value") select ${op.page}, ${op.row}, ${op.col}, ${op.name}, ${op.value} where ${isHere} on conflict ("page", "row", "col", "name") do update set "value" = excluded."value"`), ['refresh']]
+        const isHere = sql`(${op.row} = 0 or exists (select 1 from ${id(op.page)} where "_id" = ${op.row})) and exists (select 1 from pragma_table_info(${op.page}) where "name" = ${op.col} collate nocase)`
+        if (op.value === null) return [run(db.delete(style).where(and(_in(style, op), eq(style.name, op.name))))]
+        return [run(sql`insert into "_style" ("page", "row", "col", "name", "value") select ${op.page}, ${op.row}, ${op.col}, ${op.name}, ${op.value} where ${isHere} on conflict ("page", "row", "col", "name") do update set "value" = excluded."value"`)]
 }
 
 export const row = {
@@ -50,7 +49,7 @@ export const row = {
         },
         import: ({ page, names, rows }: Op): Code[] => [
                 BEGIN,
-                run(sql`create table if not exists ${id(page)} ("_id" integer primary key, ${list(names.map((name: string) => sql`${id(name)} text`))})`),
+                run(sql`create table if not exists ${id(page)} ("_id" integer primary key autoincrement, ${list(names.map((name: string) => sql`${id(name)} text`))})`),
                 run(sql`insert into ${id(page)} (${list(names.map(id))}) select ${list(names.map((_: string, index: number) => sql`value ->> ${index}`))} from json_each(${JSON.stringify(rows)})`),
                 COMMIT,
                 ['refresh'],

@@ -58,6 +58,8 @@ flowchart LR
 
 親は子の package を import でき、子は祖先の `share` だけを import できる。兄弟は import し合わない。境界は各 `package.json` の `dependencies` で、vite の plugin がそれ以外の import を拒む。
 
+検証 code は `test/` の `@test/server` と `@test/client` で、同じ規則で分ける。`test/` の package は `src/` の package を import しない。`.bench/` の scenario が両方を import して結ぶ (score.md 8 節)。
+
 ## 3. 不変条件
 
 ### 3.1. store の内容は、常に commit 済みの transaction の境目である
@@ -66,7 +68,7 @@ flowchart LR
 
 ### 3.2. put は必ず compare-and-swap である
 
-image は「前に読んだ etag と同じなら」、delta は「まだ無ければ」で書く。条件が外れたら書かずに止まる。writer が 2 つになっても、後から書いた側が止まり、store は壊れない。
+image は「前に読んだ etag と同じなら」、delta は「まだ無ければ」で書く。条件が外れたら書かずに止まる。writer が 2 つになっても store は開ける状態のままである。後から書いた側が必ず止まるのは、同じ object を書く save 同士 (merge と merge、push と push) だけで、merge と push の交差では片方の delta が鎖の外になって消える (contract.md 3 節)。
 
 ### 3.3. delta は鎖に繋がっているときだけ有効である
 
@@ -78,7 +80,7 @@ delta n は object n − 1 の etag を持つ。image を書き直すと etag �
 
 ### 3.5. 変化が無ければ store を呼ばない
 
-save の命令列は `stat` だけから決まり、汚れた page が 0 なら空になる。push か merge かも同じ式で決まる (cost.md 4 節)。
+save の命令列は `stat` だけから決まり、汚れた page が 0 なら空になる。push か merge かも同じ式で決まる (cost.md 4 節)。汚れた page は「SQLite が file に書いた page」で数える。rollback された transaction が書き戻した page も数に入るので、その直後の save は内容の同じ page を put する (`.bench/issues/004.md`)。
 
 ### 3.6. SQL だけが正で、tree は写しである
 
@@ -103,11 +105,14 @@ compiler は `(op, stat)` から命令列を返すだけで、何も読まず何
 | open し直すと変更が消えている                     | save が reject していないか。`store diverged` / `store conflict` は 3.2 が働いた結果    |
 | open が `image corrupt` / `delta corrupt` で止まる | object の先頭 4 byte (`SQLI` / `SQLD`)、gzip の伸長、delta の長さの式                    |
 | SQL が終わらない                                  | page 層の非同期の読みが reject していないか (errata.md 1 節の `handleAsync`)            |
+| wasm が `unreachable` で落ちる                    | page 層の `xRead` が、再入のときも `handleAsync` を通っているか (errata.md 1 節の Asyncify) |
 | `database disk image is malformed`                | image の chunk の並びと page 数、delta の適用順、`_kept` (base のうちまだ有効な page 数) |
 | GET が多い                                        | delta の数 (`stat().deltas`)、chunk の cache が溢れていないか、全走査の SQL             |
 | PUT が多い                                        | save を呼ぶ間隔。1 回の save が 2 回 put することは無い                                 |
 | 孤児がある                                        | 削除の命令列に装飾の delete が並んでいるか、装飾の insert の `where exists`             |
-| undo で値が戻らない                               | `fill` が `set` より前にあるか、他の client が後から同じ cell を書いていないか          |
+| undo で値が戻らない                               | `fill` が書き込みより前、`set` が commit より後にあるか、他の client が後から同じ cell を書いていないか          |
+| undo の値が別の行に書かれる                       | page table の `_id` が `AUTOINCREMENT` か (tables.md 4 節)                              |
+| `sql` の結果に別の文の行が混ざる                  | sqlite の実行が文ごとに行の配列を作り直しているか (errata.md 1 節の `statements`)       |
 | view が古い                                       | 書き込みの命令列の最後に `refresh` があるか、view が登録されているか (`window`)         |
 
 ## 5. 参照表
@@ -120,7 +125,7 @@ compiler は `(op, stat)` から命令列を返すだけで、何も読まず何
 | 方眼紙、窓、装飾の付き先、undo                 | `references/grid.md`     |
 | 外部の事実と確かめ方                           | `references/errata.md`   |
 | 検証に使うデータ                               | `references/fixtures.md` |
-| simulation の境界、軸、台帳                    | `references/score.md`    |
+| 検証の 2 つの性質、状態空間、判定、構成、台帳  | `references/score.md`    |
 
 ## 6. 完了と言える条件
 

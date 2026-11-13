@@ -1,0 +1,9 @@
+{
+        "note": "005: 重い sql (再帰 CTE で 10^7 行を数える) を止める仕組みが無い。step 1 の `select 1` は単独なら 0 〜 数 ms だが、step 2 で重い sql の直後に送った同じ `select 1` (「直後に送った」の行) は重い sql が終わるまで待たされ、ms が重い sql とほぼ同じになる。終わらない sql は 005b.json (timeout 20 で exit 124)",
+        "steps": [
+                { "op": { "type": "page.add", "page": "p" } },
+                { "op": { "type": "sql", "text": "select 1" } },
+                { "op": { "type": "sql", "text": "with recursive c(n) as (select 1 union all select n + 1 from c where n < 10000000) select count(*) from c" }, "also": { "type": "sql", "text": "select 1" } },
+                { "op": { "type": "sql", "text": "select 1" } }
+        ]
+}

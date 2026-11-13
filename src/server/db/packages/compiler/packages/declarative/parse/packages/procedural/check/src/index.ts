@@ -15,7 +15,7 @@ export const isName = (value: any) => {
         if (!isString) return false
         const lower = value.toLowerCase()
         const isSystem = lower.startsWith('_') || lower.startsWith('sqlite_') || _RESERVED.includes(lower)
-        return !isSystem && !/[\u0000-\u001f]/.test(value)
+        return !isSystem && !/\p{Cc}/u.test(value)
 }
 
 export const isNames = (value: any) => Array.isArray(value) && value.length > 0 && value.every(isName) && new Set(value.map((name: string) => name.toLowerCase())).size === value.length

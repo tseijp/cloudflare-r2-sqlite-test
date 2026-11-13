@@ -1,104 +1,49 @@
-import { dirname, join } from 'node:path'
-import { pathToFileURL, fileURLToPath } from 'node:url'
-import { installHook } from './lib/hook.mjs'
-import { measureEdit } from './lib/edit.mjs'
-import { gatesOf } from './lib/gate.mjs'
-import { measureIntake } from './lib/intake.mjs'
-import { FORMAT, hashOf, referencesOf, runnerFiles, srcFiles, writeLedger } from './lib/ledger.mjs'
-import { dumpPair, measureObserve } from './lib/observe.mjs'
-import { measureSave } from './lib/save.mjs'
-import { scanData, WINDOW } from './lib/scan.mjs'
-import { scoreRun } from './lib/score.mjs'
-import { readFixture, selectTargets } from './lib/select.mjs'
-import { closeSide, probeSide } from './lib/side.mjs'
-import { guard } from './lib/sql.mjs'
-import { measureStyle } from './lib/style.mjs'
-import { summarize } from './lib/summary.mjs'
-import { measureSync, snapshotPair } from './lib/sync.mjs'
-import { measureWindow } from './lib/window.mjs'
+import { existsSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { launch } from './launch.mjs'
 
-const _BENCH = dirname(fileURLToPath(import.meta.url))
-const _ROOT = dirname(_BENCH)
-const _DATA = join(_BENCH, 'data')
-const _OUT = join(_BENCH, 'out')
-const _T0 = Date.now()
+const _ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 
-const _log = (text) => process.stderr.write(`[bench ${((Date.now() - _T0) / 1000).toFixed(1)}s] ${text}\n`)
+const _SERVER = { middlewareMode: true, ws: false, hmr: false, watch: null }
 
-const _STEPS = [
-        ['window', (openDb, ctx) => measureWindow(openDb, ctx)],
-        ['edit', (openDb, ctx) => measureEdit(ctx)],
-        ['save', (openDb, ctx) => measureSave(openDb, ctx)],
-        ['style', (openDb, ctx) => measureStyle(ctx)],
-        ['sync', (openDb, ctx) => measureSync(ctx)],
-        ['observe', (openDb, ctx) => measureObserve(ctx)],
-]
+const _CONFIG = { root: _ROOT, configFile: join(_ROOT, 'test/vite.config.ts'), appType: 'custom', logLevel: 'error' }
 
-const _measure = async (openDb, fixture) => {
-        _log(`${fixture.file} (${fixture.role}) 取込`)
-        const intake = await measureIntake(openDb, fixture, readFixture(_DATA, fixture.file))
-        const head = { file: fixture.file, role: fixture.role, class: fixture.class }
-        const out = { ...head, intake: intake.value ?? null, error: intake.error }
-        const ctx = { fixture, sides: intake.sides, page: intake.page, pageT: intake.pageT, intake: intake.value }
-        if (intake.ok) {
-                ctx.snapshot = snapshotPair(ctx)
-                ctx.dump = await dumpPair(ctx)
-                for (const [key, run] of _STEPS) {
-                        _log(`${fixture.file} ${key}`)
-                        const res = await guard(() => run(openDb, ctx))
-                        out[key] = res.value ?? { error: res.error }
-                        ctx[key] = out[key]
-                }
-        }
-        await closeSide(intake.sides.n)
-        await closeSide(intake.sides.t)
-        return out
+// 子 process。file を vite の module runner で読み込み、default export (記録) を親に送る
+const _load = async (file) => {
+        const { createServer, createServerModuleRunner } = await import('vite')
+        const server = await createServer({ ..._CONFIG, server: _SERVER })
+        const runner = createServerModuleRunner(server.environments.ssr, { hmr: false })
+        const module = await runner.import(resolve(file))
+        await new Promise((done) => process.send({ tally: module.default ?? null }, done))
+        await runner.close()
+        await server.close()
 }
 
-const _main = async () => {
-        installHook()
-        const srcStart = hashOf(_ROOT, srcFiles(_ROOT))
-        const { openDb } = await import(pathToFileURL(join(_ROOT, 'src/server/db/index.ts')).href)
-        const head = await probeSide(openDb)
-        const limit = head.usable - 35
-        _log(`page size ${head.pageSize}、leaf の上限 ${limit} byte、fixture を走査`)
-        const scanned = scanData(_DATA, limit, (file) => _log(`走査 ${file}`))
-        const { targets, missing } = selectTargets(scanned)
-        const measured = []
-        for (const fixture of targets) measured.push(await _measure(openDb, fixture))
-        const scored = scoreRun(measured)
-        const srcEnd = hashOf(_ROOT, srcFiles(_ROOT))
-        const gates = gatesOf(measured, { missing, refs: referencesOf(_ROOT), srcStart, srcEnd })
-        const isPass = gates.every((g) => g.ok)
-        const ledger = {
-                format: FORMAT,
-                at: new Date().toISOString(),
-                runner_hash: hashOf(_BENCH, runnerFiles(_BENCH)),
-                src_hash: srcEnd,
-                runner_changed: true,
-                node: process.version,
-                window: WINDOW,
-                page_size: head.pageSize,
-                leaf_limit: limit,
-                fixtures: targets,
-                scanned,
-                missing,
-                axes: scored.axes,
-                score_before_gates: scored.sum,
-                score: isPass ? scored.sum : 0,
-                gates,
-                measured,
-                seconds: (Date.now() - _T0) / 1000,
-        }
-        const { path, diff } = writeLedger(_OUT, ledger)
-        _log(`台帳 ${path}`)
-        process.stdout.write(summarize({ ...ledger, diff }) + '\n')
+// 1 file の結果を 1 行にする。崩れの数、既知の数、打ち切り、終了 code、秒
+const _line = ({ file, tally, limit, code, seconds }) => {
+        const failures = tally?.failures ?? []
+        const known = failures.filter((failure) => failure.known).length
+        const text = tally?.failures ? ` ${tally.steps} 手 崩れ ${failures.length} (既知 ${known})` : ''
+        return `${file}${text}${limit ? ` ${limit} 秒で打ち切り` : ''} exit ${code} ${seconds.toFixed(1)} 秒\n`
 }
 
-_main().then(
-        () => process.exit(0),
-        (error) => {
-                process.stderr.write(`[bench] 失敗: ${error?.stack ?? error}\n`)
-                process.exit(1)
-        },
-)
+// 親 process。file ごとに子 process を起こす。file でない引数は子に渡す。未知の崩れがあれば exit 1
+const _main = async (args) => {
+        const files = args.filter((arg) => existsSync(arg))
+        const rest = args.filter((arg) => !files.includes(arg))
+        let code = 0
+        for (const file of files) {
+                const result = await launch(file, rest)
+                const isUnknown = (result.tally?.failures ?? []).some((failure) => !failure.known)
+                process.stdout.write(_line(result))
+                code = Math.max(code, result.code, isUnknown ? 1 : 0)
+        }
+        process.exit(code)
+}
+
+process.chdir(_ROOT)
+
+await (process.send ? _load(process.argv[2]) : _main(process.argv.slice(2)))
+
+process.exit(0)

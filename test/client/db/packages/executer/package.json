@@ -1,0 +1,10 @@
+{
+        "name": "@test/client-executer",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/client-share": "workspace:*",
+                "@test/client-executer-reduce": "workspace:*"
+        }
+}

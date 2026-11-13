@@ -1,0 +1,10 @@
+{
+        "name": "@test/client-compiler-plan-explore",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/client-share": "workspace:*",
+                "@test/client-compiler-plan-share": "workspace:*"
+        }
+}

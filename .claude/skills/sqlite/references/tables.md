@@ -55,7 +55,7 @@ erDiagram
 | -------------- | -------------------------------------------------------------------------------------------------- |
 | PAGE           | SQLite の schema。page 名が table 名、並びは `sqlite_master` の rowid (作成順)                     |
 | COLUMN         | SQLite の schema。列の存在と並びは `pragma_table_info` だけが正。幅は `_style` の `row = 0` の行   |
-| ROW            | page table の行。`_id` (rowid) が行の識別子で、縦の位置でもある                                    |
+| ROW            | page table の行。`_id` (rowid、`AUTOINCREMENT`) が行の識別子で、縦の位置でもある                   |
 | CELL           | page table の列の値。型は TEXT だけ                                                                |
 | STYLE          | `_style`。`(page, row, col, name) → value`。cell に付き、本文が空になっても残る                    |
 | MARK           | `_mark`。`(page, row, col, start, name) → (stop, value)`。本文の区間に付き、本文と同じ文で書き直す |
@@ -68,11 +68,15 @@ erDiagram
 
 **装飾の key を名前にする。** `(page 名, _id, 列名)` は schema と行からそのまま読める。引き換えに列名の変更が装飾の update を伴う。
 
+**装飾の名前の照合を識別子に合わせる。** SQLite は table 名と列名の ASCII の大文字小文字を区別しない。`update "p" set "a" = …` は列 `A` に当たる。装飾の `page` と `col` を既定の照合 (BINARY) のままにすると、本文は書けて装飾は別の key になり、列を消しても装飾が残る。`page` と `col` を `COLLATE NOCASE` にして、同じ規則で当たるようにする。
+
 **外部 key を使わない。** page ごとに table が違うので参照先を書けない。行、列、page の削除は装飾の delete と同じ transaction に並べる。装飾の insert は `where exists (その行) and exists (その列)` を付けた `insert … select` にして、無い位置には書けないようにする。
 
 **page table に index を作らない。** index は行の追加で書く page を増やし、`DROP COLUMN` を拒む。窓は rowid の範囲読みなので index は要らない。並べ替えと絞り込みは全走査になる。
 
 **`_id` を縦の位置にする。** `count(*)` も `offset` も leaf を端から読む。`max("_id")` と `"_id" >= ?` は木の深さぶんの page で済む。行を消すと番号が欠けるので、窓は「`_id >= top` の先頭 n 行」で読む。
+
+**`_id` を使い回さない。** `AUTOINCREMENT` を付けない rowid は、末尾の行を消すと同じ番号を次の行に振る。装飾も編集の履歴も `(page, _id, 列名)` を key にするので、番号が使い回されると消えた行宛ての undo が別の行に書かれる。`AUTOINCREMENT` は振った最大の番号を `sqlite_sequence` に残す。引き換えに行の追加が `sqlite_sequence` の leaf も書く。
 
 ## 5. 孤児の検査
 

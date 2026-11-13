@@ -1,0 +1,66 @@
+{
+	"note": "006b: 006 の比較。圧縮前 約 7 MiB (7,000 行 × 1,000 文字、4 chunk で ROOM に収まる) の page で同じ列を送る。open の後の全走査でも get は出ない",
+	"steps": [
+		{
+			"op": {
+				"type": "import",
+				"page": "big",
+				"names": [
+					"a"
+				],
+				"rows": {
+					"fill": [
+						7000,
+						1000
+					]
+				}
+			}
+		},
+		{
+			"op": {
+				"type": "save"
+			}
+		},
+		{
+			"op": {
+				"type": "open"
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select count(*), total(length(\"a\")) from \"big\""
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select count(*), total(length(\"a\")) from \"big\""
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select count(*), total(length(\"a\")) from \"big\""
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select * from \"big\" where \"_id\" >= 100 order by \"_id\" limit 5"
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select * from \"big\" where \"_id\" >= 100 order by \"_id\" limit 5"
+			}
+		},
+		{
+			"op": {
+				"type": "sql",
+				"text": "select * from \"big\" where \"_id\" >= 100 order by \"_id\" limit 5"
+			}
+		}
+	]
+}

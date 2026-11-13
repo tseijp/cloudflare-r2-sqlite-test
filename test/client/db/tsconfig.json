@@ -1,0 +1,44 @@
+{
+        "extends": "../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@test/client-compiler": [
+                                "./packages/compiler/src/index.ts"
+                        ],
+                        "@test/client-share": [
+                                "./packages/share/src/index.ts"
+                        ],
+                        "@test/client-compiler-parse": [
+                                "./packages/compiler/packages/declarative/parse/src/index.ts"
+                        ],
+                        "@test/client-compiler-parse-check": [
+                                "./packages/compiler/packages/declarative/parse/packages/procedural/check/src/index.ts"
+                        ],
+                        "@test/client-compiler-plan": [
+                                "./packages/compiler/packages/declarative/plan/src/index.ts"
+                        ],
+                        "@test/client-compiler-plan-explore": [
+                                "./packages/compiler/packages/declarative/plan/packages/declarative/explore/src/index.ts"
+                        ],
+                        "@test/client-compiler-plan-share": [
+                                "./packages/compiler/packages/declarative/plan/packages/procedural/share/src/index.ts"
+                        ],
+                        "@test/client-compiler-plan-ledger": [
+                                "./packages/compiler/packages/declarative/plan/packages/declarative/ledger/src/index.ts"
+                        ],
+                        "@test/client-executer": [
+                                "./packages/executer/src/index.ts"
+                        ],
+                        "@test/client-executer-reduce": [
+                                "./packages/executer/packages/procedural/reduce/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

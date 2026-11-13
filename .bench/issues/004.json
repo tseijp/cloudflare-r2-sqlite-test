@@ -1,0 +1,12 @@
+{
+        "note": "004: 上限 (LIMIT = 8192 page) を超える import が full で reject され rollback される → 内容は直前のまま (count 0) → 次の save は変化が無いのに put する (期待は store を呼ばない。rollback の前に file へ書かれた page が dirty に残るため)。rows.fill = [行数, 1 行の文字数]",
+        "steps": [
+                { "op": { "type": "page.add", "page": "p" } },
+                { "op": { "type": "col.add", "page": "p", "col": "a" } },
+                { "op": { "type": "save" } },
+                { "op": { "type": "import", "page": "p", "names": ["a"], "rows": { "fill": [8500, 4000] } } },
+                { "op": { "type": "sql", "text": "select count(*) from \"p\"" } },
+                { "op": { "type": "save" } },
+                { "op": { "type": "save" } }
+        ]
+}

@@ -6,10 +6,22 @@
 
 | package      | 入口 file                     | export                                             |
 | ------------ | ----------------------------- | -------------------------------------------------- |
-| `@db/server` | `src/server/db/src/index.ts`  | `createDb(input)` と型 `Input / Op / Code / Stat / Store / Part` |
+| `@db/server` | `src/server/db/src/index.ts`  | `createDb(input)`、10 節の定数 (`PAGE` `CHUNK` `ROOM` `LIMIT` `SWAP` `SLOTS` `ROWS`)、型 `Input / Op / Code / Stat / Store / Part` |
 | `@db/client` | `src/client/db/src/index.tsx` | `createGrid(input)` と型 `Input / Event / Code / Snap / State`   |
 
-package 名から file への対応は `src/**/package.json` の `name` と `exports` で決まる。`packages.mjs` の `scanPackages()` が全 package の `{ name, dir, entry, deps }` を返し、root の `tsconfig.json` の `paths` も同じ対応を持つ。package 内の相対 import は拡張子 `.ts` / `.tsx` 付きで書かれている。`node_modules/.bin` に `tsx` と `esbuild` がある。
+package 名から file への対応は各 `package.json` の `name` と `exports` で決まる。package 内の相対 import は拡張子 `.ts` / `.tsx` 付きで書かれている。
+
+| `packages.mjs` の export | 中身                                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scanPackages()`         | `src/` と `test/` の全 package の `{ name, dir, entry, deps }`                                                                               |
+| `topPackages(packages)`  | 他の package の中に無い package (`@db/server`、`@db/client`、`@test/server`、`@test/client`)                                                 |
+| `packages()`             | vite の plugin。package 名を入口 file に解決し、`dependencies` に無い package の import と、相対 path で他の package の中へ入る import を拒む |
+
+`node packages.mjs` は、`test/*/db` から下の directory (`packages/<名前>` と `packages/{declarative,procedural}/<名前>`) を package として `package.json` を書き、`src/index.ts` が無ければ空の入口を置き、全 package の `tsconfig.json` と root の `tsconfig.json` の `paths` を書く。`test/` の package 名は `@test/<client か server>-<途中の package 名>` で、`dependencies` は「祖先の `share` と自分の子」だけになり、実行のたびに directory から書き直される。`src/` の `package.json` は書き換えない。
+
+`test/` の package は `@db/*` を `dependencies` に持てないので、製品を import できない。製品と検証を結ぶのは package の外の file (`.bench/` の scenario) で、`topPackages` の 4 つを import できる。
+
+`node .bench/run.mjs <file …>` は、file ごとに子 process を起こし、`test/vite.config.ts` (`packages()` だけを plugin に持つ) の vite の module runner で file を import して、default export (scenario の記録) を 1 行にまとめて出す。未知の崩れか異常終了があれば exit 1、打ち切りは exit 124 である。`node .bench/run.mjs .bench/seed.ts <from>-<to> [steps] [shrink]` は、seed の範囲について scenario の書き出し、実行、縮め、台帳までを行う。`node_modules/.bin` に `vite` (8.1.3)、`tsx`、`esbuild` がある。vitest は入っていない。
 
 ## 2. `createDb({ wasm, store, doc })`
 
@@ -28,7 +40,7 @@ package 名から file への対応は `src/**/package.json` の `name` と `exp
 | `execute(codes)`   | physical な命令の配列を上から順に実行する。Promise。`run` と同じ列に並ぶ                                   |
 | `stat()`           | 6 節の `Stat` を同期で返す                                                                                 |
 
-`createDb` は何も読まない。最初に `run({ type: 'open' })` を呼ぶと store から読み込む。同じ `store` に対して新しい `createDb` を作り `open` すると、最後に成功した `save` の状態が開く。`save` していない変更は memory にしか無い。
+`createDb` は何も読まない。最初に `run({ type: 'open' })` を呼ぶと store から読み込む。空の store を開くと system table を作るので `dirty` は 0 でなく、最初の `save` は image を put する。`sql` に複数の文を渡すと順に実行され、最後の文の結果が返る。無い行への `cell` / `style` / `row.del` は何も変えずに解決する。同じ `store` に対して新しい `createDb` を作り `open` すると、最後に成功した `save` の状態が開く。`save` していない変更は memory にしか無い。
 
 ## 3. Store
 
@@ -55,11 +67,26 @@ interface Store {
 | `open`               | `get(0, 0, CHUNK × PAGE)` を 1 回。image が 2 chunk 以上のときだけ `get(1)`、`get(2)` … を `null` か鎖の切れ目まで |
 | SQL の page 読み     | memory に無い chunk ごとに `get(0, offset, length)` を 1 回                                                  |
 | `save` (push)        | `put(deltas + 1, bytes, '')` を 1 回                                                                         |
-| `save` (merge)       | image が 2 chunk 以上なら `get(0)` を 1 回、`put(0, bytes, image の tag)` を 1 回、delta があれば `delete([1..deltas])` を 1 回 |
+| `save` (merge)       | image が 2 chunk 以上なら `get(0)` を 1 回、`put(0, bytes, image の tag)` を 1 回、image が 2 chunk 以上だったなら `delete([1..SLOTS])` を 1 回 |
 
-例外は 3 つある。`open` で鎖に繋がらない delta を見つけたときは、その番号から `SLOTS` までを `delete` で 1 回消す。`put` が reject した後の最初の `save` は、その番号を `get(seq, 0, 1)` で 1 回確かめ、store が変わっていなければ続行し、変わっていれば `store diverged` で reject し続ける (`open` し直すと store の内容で続行できる)。merge の `delete` が reject したときは、次の `put` の前にもう 1 回 `delete` する。
+merge の `delete` は、製品が知っている delta の数に依らず、番号 1 から `SLOTS` までを全て消す。image を書き直した後に残る delta は、誰が書いたものでも鎖の外だからである。
 
-`put` が `null` を返したとき (別の writer が先に書いた) は `store conflict` で reject する。
+表から外れる場面は次のとおり。
+
+| 場面                                              | 呼び出しと結果                                                                                                   |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `open` で鎖に繋がらない delta を見つけた          | その番号から `SLOTS` までを `delete` で 1 回消す                                                                 |
+| `put` が `null` を返した (別の writer が先に書いた) | `store conflict` で reject する                                                                                  |
+| merge の `get(0)` の tag が、覚えている tag と違う | `image changed` で reject する。`put` は呼ばない                                                                 |
+| `put` が reject した後の `save`                   | 最初に、その番号を `get(seq, 0, 1)` で 1 回確かめる。store が変わっていなければ続行する。変わっていれば `store diverged` で reject し、`put` は呼ばない。別の writer が書いていた場合も同じである |
+| `store diverged` の後の `save`                    | 毎回 `get(seq, 0, 1)` を 1 回だけ呼んで reject する。`open` し直すと store の内容で続行できる                    |
+| image の `put` が書いた後に reject した           | `open` し直すまで、memory に無い chunk を読む SQL が `disk I/O error` で失敗する (image の tag が覚えている tag と違うため。`.bench/issues/003.md`) |
+| 別の writer が image を書き直した                 | 古い側の instance は、`open` し直すまで、memory に無い chunk を読む SQL が `disk I/O error` で失敗する (同じ理由)。古い側の merge は `image changed` で reject する |
+| merge の `put` が成功した後の `delete` が reject した | その `save` は成功として解決する。次に store を呼ぶ `save` (`dirty` が 0 でない) の最初に、もう 1 回 `delete` する。`dirty` が 0 の `save` は store を呼ばないので、それまで delta は残る |
+| 作り直した直後の instance の `open` が `get` の失敗で reject した | その instance は開いていない。`open` 以外の命令は reject し (`Cannot read properties of null`)、`save` は store を呼ばずに解決する。`open` をやり直すと store の内容で開く |
+| 開いていた instance の `open` が delta の `get` の失敗で reject した | SQL の内容は `open` の前のままで、`stat()` の `deltas` と `patch` だけが 0 に戻る。次の push は `store conflict` で reject する。`open` をやり直すと続行できる (`.bench/issues/007.md`) |
+
+writer が 2 つになったときに止まるのは、同じ object を書く save 同士だけである。merge は image の tag だけを、push はその delta 番号が空であることだけを条件にする。別の writer の push を知らない merge と、別の writer の merge を知らない push は通り、片方の delta が鎖の外になって次の `open` で消える。store は開ける状態のままである (`.bench/issues/001.md`)。
 
 ## 4. object の形
 
@@ -105,7 +132,25 @@ image の chunk を全て伸長して繋ぐと、page size 4096 の SQLite datab
 | `sql`      | `text`                                                 | 読み取り専用で実行する。返り値は `[列名の配列, ...行]` で、行は `ROWS` まで                       |
 | `leave`    | `id`                                                   | `id` の view を消す                                                                               |
 
-field の制約。`page` / `col` / `name` は 1 〜 64 文字で、`_` と `sqlite_` で始まらず、`rowid` / `oid` でなく、制御文字を含まない。`id` と装飾の `name` は `[A-Za-z0-9_-]{1,32}`。`row` と `top` は 0 以上の整数、`size` は 1 〜 200。`marks` は `[start, stop, name, value]` の配列で、`stop` は本文の長さに切り詰められ、空になった区間は捨てられる。`row.del` / `col.del` / `col.name` / `page.del` は全員の undo 履歴を捨てる。
+field の制約。`page` / `col` / `name` は 1 〜 64 文字で、`_` と `sqlite_` で始まらず、`rowid` / `oid` でなく、制御文字 (U+0000 〜 U+001F と U+007F 〜 U+009F) を含まない。`id` と装飾の `name` は `[A-Za-z0-9_-]{1,32}`。`row` と `top` は 0 以上の整数、`size` は 1 〜 200。`marks` は `[start, stop, name, value]` の配列で、`stop` は本文の長さに切り詰められ、空になった区間は捨てられる。`row.del` / `col.del` / `col.name` / `page.del` は全員の undo 履歴を捨てる。
+
+位置が無いとき、または名前が重なるときの結果。reject した命令は SQL を変えない。
+
+| 命令                          | 結果                                                                                     |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| 無い page への命令            | reject する。例外は `import` (page を作る) と、`value` が null の `style` (何も変えずに解決) |
+| 無い列への `cell` / `col.del` / `col.name` | reject する                                                                 |
+| 無い列への `style`            | 何も変えずに解決する                                                                     |
+| 無い行への `cell` / `style` / `row.del` | 何も変えずに解決する。`style` の `row` 0 は列見出しで、行が無くても書ける        |
+| 同名の `page.add` / `col.add`、既にある別の列名への `col.name` | reject する                                           |
+| 今と同じ名前への `col.name`   | 解決する。SQLite が schema の page を書き直すので `dirty` が増え、次の `save` は put する。履歴も捨てる |
+| 在る page への `import`       | `names` が全てその page の列名なら末尾に足す。1 つでも違えば reject する                 |
+| `top` が最大の `_id` より大きい `window` | 行が 0 件の窓になる                                                           |
+| 同じ `(start, name)` の区間が 2 つある `cell` | 主キーの重複で reject する。本文も書かれない                              |
+| 窓が登録されている page の `page.del` | その page を見ていた全員の窓の登録と `<id>/…` の key も消える。窓と `page.del` で page 名の大文字小文字が違っていても消える |
+| 大文字と小文字だけが違う名前への `col.name` (`a` → `A`) | 解決する。装飾の列名も変わる                                   |
+| rollback された書き込みの後の `save` | rollback の前に file へ書かれた page が `dirty` に残り、内容が同じ page を put する (`.bench/issues/004.md`) |
+| 終わらない、または重い `sql`  | 止める仕組みは無い。実行の間、他の命令は全て待たされる (`.bench/issues/005.md`)          |
 
 ## 6. `Stat`
 
@@ -140,7 +185,15 @@ field の制約。`page` / `col` / `name` は 1 〜 64 文字で、`_` と `sqli
 | `push`    |                            | page 層 → store  | 汚れた page を delta 1 つにして put する                                               |
 | `merge`   |                            | page 層 → store  | 全 page を image 1 つにして put し、delta を消す                                       |
 
-命令の配列の途中で失敗すると、開いている transaction は rollback され、`run` / `execute` は reject する。
+命令の配列の途中で失敗すると、開いている transaction は rollback され、`run` / `execute` は reject する。tree は rollback されない。失敗より前に実行された `view` / `fill` / `set` の結果は残る。そのため命令の並びを次のように決めてある。
+
+| 命令              | 並び                                                  | 失敗したときに残るもの                                         |
+| ----------------- | ----------------------------------------------------- | -------------------------------------------------------------- |
+| `window`          | `view` を rows、cols、styles、marks、last の順に 5 つ | page が無ければ最初の rows で失敗し、登録も tree も変わらない  |
+| `cell` / `style`  | `fill`、書き込み、`set`、`refresh`                    | 書き込みが失敗すると `set` に届かず、その編集は履歴に入らない  |
+| undo / redo の反映 | 書き込み、`refresh`                                   | 無し                                                           |
+
+commit の後の `refresh` が失敗したとき (page の読みの失敗) は、SQL の変更は残り、命令は reject する。次に成功した `refresh` が、登録済みの view を全て合わせ直す。
 
 ## 8. tree
 
@@ -161,11 +214,11 @@ field の制約。`page` / `col` / `name` は 1 〜 64 文字で、`_` と `sqli
 
 | table       | 列                                                  | 主キー                          |
 | ----------- | --------------------------------------------------- | ------------------------------- |
-| `<page 名>` | `_id INTEGER PRIMARY KEY` と利用者の列 (全て TEXT)  | `_id`                           |
+| `<page 名>` | `_id INTEGER PRIMARY KEY AUTOINCREMENT` と利用者の列 (全て TEXT)。消した行の `_id` は再利用されない | `_id` |
 | `_style`    | `page, row, col, name, value`                       | `(page, row, col, name)`        |
 | `_mark`     | `page, row, col, start, name, stop, value`          | `(page, row, col, start, name)` |
 
-`_style` と `_mark` は `WITHOUT ROWID`。`row` は page table の `_id`、`col` は列名である。`row = 0` は列見出しを指す。
+`_style` と `_mark` は `WITHOUT ROWID`。`row` は page table の `_id`、`col` は列名である。`row = 0` は列見出しを指す。`page` と `col` の列は `COLLATE NOCASE` で、SQLite の table 名と列名と同じく、ASCII の大文字と小文字を区別しない。命令の `page` / `col` に大文字小文字だけ違う名前 (`a` と `A`) を渡しても、本文と装飾は同じ位置に当たる。装飾の行には渡された綴りがそのまま入る。編集の履歴の key は綴りを区別する。
 
 ## 10. 定数
 

@@ -10,6 +10,7 @@ export const createPager = (load: (index: number) => Promise<Uint8Array>) => {
         const _dirty = new Set<number>()
         let _count = 0
         let _kept = 0
+        let _isLoading = false
         const _cut = (count: number) => {
                 _count = count
                 _kept = Math.min(_kept, count)
@@ -42,7 +43,8 @@ export const createPager = (load: (index: number) => Promise<Uint8Array>) => {
                         const pgno = Math.floor(offset / PAGE) + 1
                         const copy = () => (data.set(_find(pgno)!.subarray(offset % PAGE, (offset % PAGE) + data.length)), SQLITE_OK)
                         if (pgno > _count) return (data.fill(0), SQLITE_IOERR_SHORT_READ)
-                        if (_find(pgno)) return copy()
+                        if (!_isLoading && _find(pgno)) return copy()
+                        _isLoading = !_isLoading
                         return vfs.handleAsync(() => _fetch(pgno).then(copy, () => SQLITE_IOERR))
                 },
                 xWrite: (_file: number, data: Uint8Array, offset: number) => {
