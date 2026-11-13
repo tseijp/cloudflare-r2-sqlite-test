@@ -1,0 +1,20 @@
+{
+        "extends": "../../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@test/server-executer-tmp": [
+                                "./packages/declarative/tmp/src/index.ts"
+                        ],
+                        "@test/server-executer-tmp-tmp": [
+                                "./packages/declarative/tmp/packages/procedural/tmp/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

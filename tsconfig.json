@@ -23,40 +23,40 @@
                                 "./src/client/db/src/index.tsx"
                         ],
                         "@db/client-share": [
-                                "./src/client/db/packages/share/src/index.ts"
+                                "./src/client/db/packages/procedural/share/src/index.ts"
                         ],
                         "@db/client-compiler": [
-                                "./src/client/db/packages/compiler/src/index.ts"
+                                "./src/client/db/packages/declarative/compiler/src/index.ts"
                         ],
                         "@db/client-compiler-parse": [
-                                "./src/client/db/packages/compiler/packages/declarative/parse/src/index.ts"
+                                "./src/client/db/packages/declarative/compiler/packages/declarative/parse/src/index.ts"
                         ],
                         "@db/client-compiler-parse-csv": [
-                                "./src/client/db/packages/compiler/packages/declarative/parse/packages/procedural/csv/src/index.ts"
+                                "./src/client/db/packages/declarative/compiler/packages/declarative/parse/packages/procedural/csv/src/index.ts"
                         ],
                         "@db/client-compiler-plan": [
-                                "./src/client/db/packages/compiler/packages/declarative/plan/src/index.ts"
+                                "./src/client/db/packages/declarative/compiler/packages/declarative/plan/src/index.ts"
                         ],
                         "@db/client-compiler-plan-cursor": [
-                                "./src/client/db/packages/compiler/packages/declarative/plan/packages/procedural/cursor/src/index.ts"
+                                "./src/client/db/packages/declarative/compiler/packages/declarative/plan/packages/procedural/cursor/src/index.ts"
                         ],
                         "@db/client-compiler-plan-name": [
-                                "./src/client/db/packages/compiler/packages/declarative/plan/packages/procedural/name/src/index.ts"
+                                "./src/client/db/packages/declarative/compiler/packages/declarative/plan/packages/procedural/name/src/index.ts"
                         ],
                         "@db/client-executer": [
-                                "./src/client/db/packages/executer/src/index.ts"
+                                "./src/client/db/packages/declarative/executer/src/index.ts"
                         ],
                         "@db/client-executer-state": [
-                                "./src/client/db/packages/executer/packages/declarative/state/src/index.ts"
+                                "./src/client/db/packages/declarative/executer/packages/declarative/state/src/index.ts"
                         ],
                         "@db/client-executer-wire": [
-                                "./src/client/db/packages/executer/packages/declarative/wire/src/index.ts"
+                                "./src/client/db/packages/declarative/executer/packages/declarative/wire/src/index.ts"
                         ],
                         "@db/client-executer-dom": [
-                                "./src/client/db/packages/executer/packages/declarative/dom/src/index.tsx"
+                                "./src/client/db/packages/declarative/executer/packages/declarative/dom/src/index.tsx"
                         ],
                         "@db/client-executer-dom-event": [
-                                "./src/client/db/packages/executer/packages/declarative/dom/packages/procedural/event/src/index.ts"
+                                "./src/client/db/packages/declarative/executer/packages/declarative/dom/packages/procedural/event/src/index.ts"
                         ],
                         "@db/server": [
                                 "./src/server/db/src/index.ts"
@@ -116,121 +116,61 @@
                                 "./test/client/db/src/index.ts"
                         ],
                         "@test/client-compiler": [
-                                "./test/client/db/packages/compiler/src/index.ts"
-                        ],
-                        "@test/client-share": [
-                                "./test/client/db/packages/share/src/index.ts"
+                                "./test/client/db/packages/declarative/compiler/src/index.ts"
                         ],
                         "@test/client-compiler-parse": [
-                                "./test/client/db/packages/compiler/packages/declarative/parse/src/index.ts"
+                                "./test/client/db/packages/declarative/compiler/packages/declarative/parse/src/index.ts"
                         ],
-                        "@test/client-compiler-parse-check": [
-                                "./test/client/db/packages/compiler/packages/declarative/parse/packages/procedural/check/src/index.ts"
+                        "@test/client-compiler-parse-tmp": [
+                                "./test/client/db/packages/declarative/compiler/packages/declarative/parse/packages/procedural/tmp/src/index.ts"
                         ],
                         "@test/client-compiler-plan": [
-                                "./test/client/db/packages/compiler/packages/declarative/plan/src/index.ts"
+                                "./test/client/db/packages/declarative/compiler/packages/declarative/plan/src/index.ts"
                         ],
-                        "@test/client-compiler-plan-explore": [
-                                "./test/client/db/packages/compiler/packages/declarative/plan/packages/declarative/explore/src/index.ts"
-                        ],
-                        "@test/client-compiler-plan-share": [
-                                "./test/client/db/packages/compiler/packages/declarative/plan/packages/procedural/share/src/index.ts"
-                        ],
-                        "@test/client-compiler-plan-ledger": [
-                                "./test/client/db/packages/compiler/packages/declarative/plan/packages/declarative/ledger/src/index.ts"
+                        "@test/client-compiler-plan-tmp": [
+                                "./test/client/db/packages/declarative/compiler/packages/declarative/plan/packages/procedural/tmp/src/index.ts"
                         ],
                         "@test/client-executer": [
-                                "./test/client/db/packages/executer/src/index.ts"
+                                "./test/client/db/packages/declarative/executer/src/index.ts"
                         ],
-                        "@test/client-executer-reduce": [
-                                "./test/client/db/packages/executer/packages/procedural/reduce/src/index.ts"
+                        "@test/client-executer-tmp": [
+                                "./test/client/db/packages/declarative/executer/packages/declarative/tmp/src/index.ts"
+                        ],
+                        "@test/client-executer-tmp-tmp": [
+                                "./test/client/db/packages/declarative/executer/packages/declarative/tmp/packages/procedural/tmp/src/index.ts"
+                        ],
+                        "@test/client-ONLY_CREATE_SHARE_HERE": [
+                                "./test/client/db/packages/procedural/ONLY_CREATE_SHARE_HERE/src/index.ts"
                         ],
                         "@test/server": [
                                 "./test/server/db/src/index.ts"
                         ],
                         "@test/server-compiler": [
-                                "./test/server/db/packages/compiler/src/index.ts"
-                        ],
-                        "@test/server-share": [
-                                "./test/server/db/packages/share/src/index.ts"
+                                "./test/server/db/packages/declarative/compiler/src/index.ts"
                         ],
                         "@test/server-compiler-parse": [
-                                "./test/server/db/packages/compiler/packages/declarative/parse/src/index.ts"
+                                "./test/server/db/packages/declarative/compiler/packages/declarative/parse/src/index.ts"
                         ],
-                        "@test/server-compiler-parse-check": [
-                                "./test/server/db/packages/compiler/packages/declarative/parse/packages/procedural/check/src/index.ts"
+                        "@test/server-compiler-parse-tmp": [
+                                "./test/server/db/packages/declarative/compiler/packages/declarative/parse/packages/procedural/tmp/src/index.ts"
                         ],
                         "@test/server-compiler-plan": [
-                                "./test/server/db/packages/compiler/packages/declarative/plan/src/index.ts"
+                                "./test/server/db/packages/declarative/compiler/packages/declarative/plan/src/index.ts"
                         ],
-                        "@test/server-compiler-plan-chaos": [
-                                "./test/server/db/packages/compiler/packages/declarative/plan/packages/declarative/chaos/src/index.ts"
-                        ],
-                        "@test/server-compiler-plan-share": [
-                                "./test/server/db/packages/compiler/packages/declarative/plan/packages/procedural/share/src/index.ts"
-                        ],
-                        "@test/server-compiler-plan-claim": [
-                                "./test/server/db/packages/compiler/packages/declarative/plan/packages/declarative/claim/src/index.ts"
-                        ],
-                        "@test/server-compiler-plan-life": [
-                                "./test/server/db/packages/compiler/packages/declarative/plan/packages/declarative/life/src/index.ts"
-                        ],
-                        "@test/server-compiler-plan-order": [
-                                "./test/server/db/packages/compiler/packages/declarative/plan/packages/declarative/order/src/index.ts"
-                        ],
-                        "@test/server-compiler-plan-order-data": [
-                                "./test/server/db/packages/compiler/packages/declarative/plan/packages/declarative/order/packages/procedural/data/src/index.ts"
+                        "@test/server-compiler-plan-tmp": [
+                                "./test/server/db/packages/declarative/compiler/packages/declarative/plan/packages/procedural/tmp/src/index.ts"
                         ],
                         "@test/server-executer": [
-                                "./test/server/db/packages/executer/src/index.ts"
+                                "./test/server/db/packages/declarative/executer/src/index.ts"
                         ],
-                        "@test/server-executer-book": [
-                                "./test/server/db/packages/executer/packages/declarative/book/src/index.ts"
+                        "@test/server-executer-tmp": [
+                                "./test/server/db/packages/declarative/executer/packages/declarative/tmp/src/index.ts"
                         ],
-                        "@test/server-executer-share": [
-                                "./test/server/db/packages/executer/packages/procedural/share/src/index.ts"
+                        "@test/server-executer-tmp-tmp": [
+                                "./test/server/db/packages/declarative/executer/packages/declarative/tmp/packages/procedural/tmp/src/index.ts"
                         ],
-                        "@test/server-executer-book-ratio": [
-                                "./test/server/db/packages/executer/packages/declarative/book/packages/procedural/ratio/src/index.ts"
-                        ],
-                        "@test/server-executer-fleet": [
-                                "./test/server/db/packages/executer/packages/declarative/fleet/src/index.ts"
-                        ],
-                        "@test/server-executer-fleet-state": [
-                                "./test/server/db/packages/executer/packages/declarative/fleet/packages/procedural/state/src/index.ts"
-                        ],
-                        "@test/server-executer-judge": [
-                                "./test/server/db/packages/executer/packages/declarative/judge/src/index.ts"
-                        ],
-                        "@test/server-executer-judge-claim": [
-                                "./test/server/db/packages/executer/packages/declarative/judge/packages/declarative/claim/src/index.ts"
-                        ],
-                        "@test/server-executer-judge-share": [
-                                "./test/server/db/packages/executer/packages/declarative/judge/packages/procedural/share/src/index.ts"
-                        ],
-                        "@test/server-executer-judge-count": [
-                                "./test/server/db/packages/executer/packages/declarative/judge/packages/declarative/count/src/index.ts"
-                        ],
-                        "@test/server-executer-judge-safety": [
-                                "./test/server/db/packages/executer/packages/declarative/judge/packages/declarative/safety/src/index.ts"
-                        ],
-                        "@test/server-executer-judge-surface": [
-                                "./test/server/db/packages/executer/packages/declarative/judge/packages/declarative/surface/src/index.ts"
-                        ],
-                        "@test/server-executer-memory": [
-                                "./test/server/db/packages/executer/packages/declarative/memory/src/index.ts"
-                        ],
-                        "@test/server-executer-pilot": [
-                                "./test/server/db/packages/executer/packages/declarative/pilot/src/index.ts"
-                        ],
-                        "@test/server-executer-report": [
-                                "./test/server/db/packages/executer/packages/declarative/report/src/index.ts"
-                        ],
-                        "@test/server-executer-report-region": [
-                                "./test/server/db/packages/executer/packages/declarative/report/packages/procedural/region/src/index.ts"
-                        ],
-                        "@test/server-executer-store": [
-                                "./test/server/db/packages/executer/packages/declarative/store/src/index.ts"
+                        "@test/server-ONLY_CREATE_SHARE_HERE": [
+                                "./test/server/db/packages/procedural/ONLY_CREATE_SHARE_HERE/src/index.ts"
                         ]
                 }
         },
