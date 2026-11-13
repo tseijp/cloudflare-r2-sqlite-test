@@ -1,0 +1,9 @@
+{
+        "name": "@test/server-compiler-parse",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/server-compiler-parse-tmp": "workspace:*"
+        }
+}
