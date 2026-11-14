@@ -1,0 +1,10 @@
+{
+        "name": "@test/client-compiler",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@test/client-compiler-parse": "workspace:*",
+                "@test/client-compiler-plan": "workspace:*"
+        }
+}

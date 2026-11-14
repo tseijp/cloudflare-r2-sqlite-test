@@ -6,6 +6,6 @@
         "dependencies": {
                 "@test/server-compiler": "workspace:*",
                 "@test/server-executer": "workspace:*",
-                "@test/server-share": "workspace:*"
+                "@test/server-ONLY_CREATE_SHARE_HERE": "workspace:*"
         }
 }

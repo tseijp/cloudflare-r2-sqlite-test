@@ -7,34 +7,31 @@
                 ],
                 "paths": {
                         "@test/client-compiler": [
-                                "./packages/compiler/src/index.ts"
-                        ],
-                        "@test/client-share": [
-                                "./packages/share/src/index.ts"
+                                "./packages/declarative/compiler/src/index.ts"
                         ],
                         "@test/client-compiler-parse": [
-                                "./packages/compiler/packages/declarative/parse/src/index.ts"
+                                "./packages/declarative/compiler/packages/declarative/parse/src/index.ts"
                         ],
-                        "@test/client-compiler-parse-check": [
-                                "./packages/compiler/packages/declarative/parse/packages/procedural/check/src/index.ts"
+                        "@test/client-compiler-parse-tmp": [
+                                "./packages/declarative/compiler/packages/declarative/parse/packages/procedural/tmp/src/index.ts"
                         ],
                         "@test/client-compiler-plan": [
-                                "./packages/compiler/packages/declarative/plan/src/index.ts"
+                                "./packages/declarative/compiler/packages/declarative/plan/src/index.ts"
                         ],
-                        "@test/client-compiler-plan-explore": [
-                                "./packages/compiler/packages/declarative/plan/packages/declarative/explore/src/index.ts"
-                        ],
-                        "@test/client-compiler-plan-share": [
-                                "./packages/compiler/packages/declarative/plan/packages/procedural/share/src/index.ts"
-                        ],
-                        "@test/client-compiler-plan-ledger": [
-                                "./packages/compiler/packages/declarative/plan/packages/declarative/ledger/src/index.ts"
+                        "@test/client-compiler-plan-tmp": [
+                                "./packages/declarative/compiler/packages/declarative/plan/packages/procedural/tmp/src/index.ts"
                         ],
                         "@test/client-executer": [
-                                "./packages/executer/src/index.ts"
+                                "./packages/declarative/executer/src/index.ts"
                         ],
-                        "@test/client-executer-reduce": [
-                                "./packages/executer/packages/procedural/reduce/src/index.ts"
+                        "@test/client-executer-tmp": [
+                                "./packages/declarative/executer/packages/declarative/tmp/src/index.ts"
+                        ],
+                        "@test/client-executer-tmp-tmp": [
+                                "./packages/declarative/executer/packages/declarative/tmp/packages/procedural/tmp/src/index.ts"
+                        ],
+                        "@test/client-ONLY_CREATE_SHARE_HERE": [
+                                "./packages/procedural/ONLY_CREATE_SHARE_HERE/src/index.ts"
                         ]
                 }
         },

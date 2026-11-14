@@ -1,9 +1,0 @@
-{
-        "name": "@test/client-executer-reduce",
-        "private": true,
-        "type": "module",
-        "exports": "./src/index.ts",
-        "dependencies": {
-                "@test/client-share": "workspace:*"
-        }
-}
