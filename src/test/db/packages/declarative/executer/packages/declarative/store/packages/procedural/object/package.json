@@ -1,0 +1,10 @@
+{
+        "name": "@db/test-executer-store-object",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/test-share": "workspace:*",
+                "@db/test-executer-share": "workspace:*"
+        }
+}

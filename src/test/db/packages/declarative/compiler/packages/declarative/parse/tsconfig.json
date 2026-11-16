@@ -12,11 +12,17 @@
                         "@db/test-compiler-share": [
                                 "../../procedural/share/src/index.ts"
                         ],
-                        "@db/test-compiler-parse-tmp": [
-                                "./packages/declarative/tmp/src/index.tsx"
+                        "@db/test-compiler-parse-space": [
+                                "./packages/declarative/space/src/index.tsx"
                         ],
-                        "@db/test-compiler-parse-procedural-tmp": [
-                                "./packages/procedural/tmp/src/index.ts"
+                        "@db/test-compiler-parse-share": [
+                                "./packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/test-compiler-parse-storm": [
+                                "./packages/declarative/storm/src/index.tsx"
+                        ],
+                        "@db/test-compiler-parse-story": [
+                                "./packages/declarative/story/src/index.tsx"
                         ]
                 }
         },

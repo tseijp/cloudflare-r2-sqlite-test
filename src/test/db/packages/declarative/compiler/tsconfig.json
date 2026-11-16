@@ -15,20 +15,35 @@
                         "@db/test-compiler-share": [
                                 "./packages/procedural/share/src/index.ts"
                         ],
-                        "@db/test-compiler-parse-tmp": [
-                                "./packages/declarative/parse/packages/declarative/tmp/src/index.tsx"
+                        "@db/test-compiler-parse-space": [
+                                "./packages/declarative/parse/packages/declarative/space/src/index.tsx"
                         ],
-                        "@db/test-compiler-parse-procedural-tmp": [
-                                "./packages/declarative/parse/packages/procedural/tmp/src/index.ts"
+                        "@db/test-compiler-parse-share": [
+                                "./packages/declarative/parse/packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/test-compiler-parse-storm": [
+                                "./packages/declarative/parse/packages/declarative/storm/src/index.tsx"
+                        ],
+                        "@db/test-compiler-parse-story": [
+                                "./packages/declarative/parse/packages/declarative/story/src/index.tsx"
                         ],
                         "@db/test-compiler-plan": [
                                 "./packages/declarative/plan/src/index.tsx"
                         ],
-                        "@db/test-compiler-plan-tmp": [
-                                "./packages/declarative/plan/packages/declarative/tmp/src/index.tsx"
+                        "@db/test-compiler-plan-act": [
+                                "./packages/declarative/plan/packages/declarative/act/src/index.tsx"
                         ],
-                        "@db/test-compiler-plan-procedural-tmp": [
-                                "./packages/declarative/plan/packages/procedural/tmp/src/index.ts"
+                        "@db/test-compiler-plan-share": [
+                                "./packages/declarative/plan/packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/test-compiler-plan-book": [
+                                "./packages/declarative/plan/packages/declarative/book/src/index.tsx"
+                        ],
+                        "@db/test-compiler-plan-rule": [
+                                "./packages/declarative/plan/packages/declarative/rule/src/index.tsx"
+                        ],
+                        "@db/test-compiler-plan-watch": [
+                                "./packages/declarative/plan/packages/declarative/watch/src/index.tsx"
                         ]
                 }
         },

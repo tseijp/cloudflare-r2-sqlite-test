@@ -9,17 +9,26 @@
                         "@db/test-share": [
                                 "../../procedural/share/src/index.ts"
                         ],
-                        "@db/test-executer-tmp": [
-                                "./packages/declarative/tmp/src/index.tsx"
+                        "@db/test-executer-host": [
+                                "./packages/declarative/host/src/index.tsx"
                         ],
                         "@db/test-executer-share": [
                                 "./packages/procedural/share/src/index.ts"
                         ],
-                        "@db/test-executer-tmp-tmp": [
-                                "./packages/declarative/tmp/packages/declarative/tmp/src/index.tsx"
+                        "@db/test-executer-host-flow": [
+                                "./packages/declarative/host/packages/procedural/flow/src/index.ts"
                         ],
-                        "@db/test-executer-tmp-procedural-tmp": [
-                                "./packages/declarative/tmp/packages/procedural/tmp/src/index.ts"
+                        "@db/test-executer-judge": [
+                                "./packages/declarative/judge/src/index.tsx"
+                        ],
+                        "@db/test-executer-judge-cost": [
+                                "./packages/declarative/judge/packages/procedural/cost/src/index.ts"
+                        ],
+                        "@db/test-executer-store": [
+                                "./packages/declarative/store/src/index.tsx"
+                        ],
+                        "@db/test-executer-store-object": [
+                                "./packages/declarative/store/packages/procedural/object/src/index.ts"
                         ]
                 }
         },

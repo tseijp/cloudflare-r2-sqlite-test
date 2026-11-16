@@ -12,11 +12,20 @@
                         "@db/test-compiler-share": [
                                 "../../procedural/share/src/index.ts"
                         ],
-                        "@db/test-compiler-plan-tmp": [
-                                "./packages/declarative/tmp/src/index.tsx"
+                        "@db/test-compiler-plan-act": [
+                                "./packages/declarative/act/src/index.tsx"
                         ],
-                        "@db/test-compiler-plan-procedural-tmp": [
-                                "./packages/procedural/tmp/src/index.ts"
+                        "@db/test-compiler-plan-share": [
+                                "./packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/test-compiler-plan-book": [
+                                "./packages/declarative/book/src/index.tsx"
+                        ],
+                        "@db/test-compiler-plan-rule": [
+                                "./packages/declarative/rule/src/index.tsx"
+                        ],
+                        "@db/test-compiler-plan-watch": [
+                                "./packages/declarative/watch/src/index.tsx"
                         ]
                 }
         },

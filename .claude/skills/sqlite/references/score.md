@@ -1,238 +1,227 @@
 # 検証と採点
 
-検証は決定論的 simulation で行う。目的は、製品をさまざまな状態と順序で動かし、安全性と費用の 2 つの性質がどの領域で崩れるかを見ることである。点数は目的ではない。
+検証は deterministic simulation (DST) で行う。目的は、製品をさまざまな state と順序で動かし、安全性と生存性がどの region で成り立たないかを見ることである。点数は目的ではない。
 
 ## 1. 2 つの性質
 
-| 性質   | 意味                                                                                                       | 崩れたとき                               |
-| ------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| 安全性 | store の image と鎖の delta は、どの時点でも 1 つの SQLite database を表し、成功した save の内容を失わない | 不具合である。再現できる scenario を残す |
-| 費用   | store の呼び出しの回数と転送量が cost.md の式どおりで、丸ごと保存 (cost.md 9 節) より少ない                | 計測値である。領域ごとの比を残す         |
+| 性質   | 意味                                                                                                         | 判定する axis                                                         | 失敗したとき                               |
+| ------ | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------ |
+| 安全性 | store の image と chain の delta は、どの時点でも 1 つの SQLite database を表し、成功した save の内容を失わない | integrity、永続、原子、chain、writer、上限、compile、装飾、window、履歴、一致 | 不具合である。再現できる scenario を残す   |
+| 生存性 | 障害が無ければ open と save は resolve し、store の呼び出し回数と転送量は cost.md の式どおりで、丸ごと保存 (cost.md 9 節) より少ない | 可用、回数、式、丸ごと保存、最良 | 可用と回数は不具合である。費用は計測値として region ごとの比を残す |
 
-node は 1 つで、合意する相手は居ない。この製品でレプリカに当たるのは store の object (image と delta) で、合意に当たる性質は「image に鎖の delta を重ねたものが 1 つの database である」ことである。費用が丸ごと保存を下回ることを確かめるまで、この方式は製品に組み込まない。
+node は 1 つで、合意する相手は居ない。この製品で replica に当たるのは store の object (image と delta) で、合意に当たる性質は「image に chain の delta を重ねたものが 1 つの database である」ことである。費用が丸ごと保存を下回ることを確かめるまで、この方式は製品に組み込まない。
 
 ## 2. simulation
 
-```
-指定 (seed と設定) ─► @test/client ─► scenario (.bench の code) ─┐
-手で書いた scenario (.bench の code) ───────────────────────────┴─► @test/server ─► 製品 + 模擬 store + 論理時計 ─► 観測 ─► 判定
+```mermaid
+flowchart LR
+    SEED[seed と指定] -->|explore| STEPS[step の配列]
+    HAND[手書きの scenario] --> STEPS
+    STEPS -->|1 step| C[compiler<br>parse → plan]
+    C -->|physical な命令| X[executer<br>store · host · judge]
+    X -->|facts| C
+    X <-->|send / serve<br>data だけ| SIM[.bench/sim.ts]
+    SIM --> DB[(@db/server<br>@db/client)]
 ```
 
 | 規則   | 内容                                                                                                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 決定論 | 同じ指定は、同じ scenario、同じ観測、同じ判定を再現する。乱数は seed から作った擬似乱数だけを使い、実時刻と `Math.random` は使わない                                                         |
-| 形式   | seed から作った scenario と手で書いた scenario は同じ形式で、同じ経路を走る                                                                                                                  |
-| 結合   | `test/` の package は `src/` の package を import しない。製品と検証を結ぶのは `.bench/` の scenario だけで、scenario が `@db/server` と `@test/server` を import して組み合わせる          |
-| 文字列 | `@test/client` の生成は、`src/` の file を文字列として開いて検索してよい (定数の名前と値など)。文字列から関数を作らない (`eval`、`new Function`、`src/` の file への動的な import)         |
-| 面     | 製品に触れてよい面は contract.md だけである。検証 code を書く者は `src/` を読まない。面に無い振る舞いは測らない                                                                              |
-| 重複   | 製品に在る機能を検証 code に書かない。image と delta の復号、命令の検査、save の式、SQL の意味は、製品の API (`run` / `compile` / `execute` / `stat`) を呼んで得る。定数は `@db/server` の export を使う |
-| 期待値 | 手で書いた値か、同じ製品を別の時点、別の instance で観測した値である (save の時点の内容と、作り直して開いた内容の比較)。製品の意味を写した model を持たない                                  |
-| 時間   | 時間は simulation の中の論理時計である。`@db/server` と `@db/client` は時計も乱数も読まない。時間が効くのは、アプリが save を呼ぶ間隔 (cost.md 5 節)、instance を作り直す時点、store の呼び出しが重なる順序の 3 つである |
+| 決定論 | 同じ指定は、同じ scenario、同じ観測、同じ判定を再現する。乱数は seed から計算した値だけを使い、実時刻と `Math.random` は使わない                                                             |
+| 形式   | seed が生成する scenario と手書きの scenario は同じ形式で、同じ経路で実行される (space.md 6 節)                                                                                              |
+| 結合   | `@db/test` は `@db/server` と `@db/client` を import せず、製品の object も引数に受け取らない。製品の API を呼ぶのは `.bench/sim.ts` だけで、`@db/test` とは `send` (検証 → 製品) と `serve` (製品 → 模擬 store) の 2 つの関数で data だけをやり取りする |
+| API    | 検証 code が使ってよい製品の API は contract.md だけである。API に無い振る舞いは測らない                                                                                                     |
+| 重複   | 製品にある機能を検証 code に書かない。image と delta の decode、`Op` の検査、save の式、SQL の意味は、製品の API (`run` / `compile` / `execute` / `stat`) を呼んで得る。定数は `@db/server` の export を `sim.ts` が渡す |
+| 期待値 | 手書きの値か、同じ製品を別の instance で観測した値である。shadow (node と同じ `Op` を受け取る instance) と probe (store の copy を開く instance) を使い、製品の意味を写した model を持たない  |
+| time   | time は simulation 内の値で、`t.tick` だけが進める。`@db/server` と `@db/client` は時刻も乱数も読まない (space.md 4 節)                                                                     |
 
 ## 3. 状態空間
 
-状態は 3 つの場所にある。
-
-| 場所     | 状態                                                                                                            |
-| -------- | --------------------------------------------------------------------------------------------------------------- |
-| store    | image の page 数と chunk 数、鎖に繋がる delta の数と各 delta の page 数、鎖の先に残った delta、各 object の tag |
-| instance | 保存前の page、memory にある chunk、窓の登録、編集の履歴、確認待ちの put、消し残した delta の番号               |
-| 内容     | page の数、行数、列数、本文の長さ、装飾の数、消した行の数                                                       |
-
-長く使った後の状態 (大きい image、溜まった delta、消し残し) を、利用者の命令を最初から流し直さずに作る。そのための道具は次のとおり。
-
-| 道具                | 出どころ | できること                                                                                                            |
-| ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| `run(op)`           | 製品     | logical な命令 (contract.md 5 節)                                                                                     |
-| `execute(codes)`    | 製品     | physical な命令を直接送る (contract.md 7 節)。`sql` で行をまとめて作る、`push` / `merge` で save の式に依らずに delta を積む、畳む |
-| `compile(op, stat)` | 製品     | 任意の `stat` に対する命令列を、実行せずに得る (その `stat` で save が push か merge か)                              |
-| `stat()`            | 製品     | レプリカの状態 (`pages` `base` `dirty` `deltas` `patch`)                                                              |
-| 定数                | 製品     | `@db/server` が export する `PAGE` `CHUNK` `ROOM` `LIMIT` `SWAP` `SLOTS` `ROWS`                                       |
-| store の写し        | 検証     | object を不透明な byte のまま、写す、戻す、別の store に移す、消す                                                    |
-
-直接動かすときの範囲。
-
-| 規則             | 内容                                                                                                                                                         |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `push` の直接送信 | `base > CHUNK`、`deltas < SLOTS`、`patch + dirty < CHUNK` のときだけ。それ以外は save の式が作らない並びで、製品の保証の外である                             |
-| 式の外の領域     | `deltas` が save の式の最大を超える領域は、`push` の直接送信でだけ届く。この領域の崩れは、式の内側の崩れと分けて数える                                       |
-| `sql` の直接送信 | 行の追加と変更に使う。contract.md 9 節と違う形の table を作らない                                                                                            |
-| store の写し     | 1 つの時点の写しをそのまま戻すか、製品が作り得る並び (新しい image と、merge の delete が失敗して残った古い delta) に組む                                    |
-| 観測用の instance | `open` は鎖の外の delta を消す (contract.md 3 節)。store を変えずに中を見るときは、写した store を別の instance で開く                                      |
-| 範囲外           | 壊れた object、途中で切れた object                                                                                                                           |
-
-探索する領域は次の軸の組み合わせである。区切りの値は走らせる前に決めて台帳に書き、領域ごとの到達回数を台帳に残す。到達が 0 回の領域は未計測である。
-
-| 軸                     | 取り得る範囲                                                                   |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| image の chunk 数      | 1 (delta を持たない)、2 〜 `ROOM`、`ROOM` 超 〜 `LIMIT ÷ CHUNK`                |
-| delta の数             | 0 〜 save の式の最大、式の最大超 〜 `SLOTS`                                    |
-| `patch + dirty`        | 0 から `CHUNK` の手前まで                                                      |
-| 1 回の save までの変更 | cell 1 つ、行の追加、取込、列の削除 (全 leaf)、上限 `LIMIT` の手前と超える取込 |
-| open と save の比      | save が続く利用、open が続く利用、交互                                         |
-| instance の数          | 1、2                                                                           |
-| 作り直しの時点         | 命令の切れ目、store の呼び出しの途中                                           |
-| client の数            | 1 〜 10 (窓、編集、undo / redo)                                                |
-| 名前と本文             | ASCII、日本語、空白、`"` `'` `%` `_` `/` を含む文字列、大文字小文字だけ違う名前、空文字列、null、1 page を超える本文、制約のすぐ外側 (拒まれるべき入力) |
-| 行の出どころ           | 生成した行と、fixtures.md の CSV から取った行                                  |
+seed が決める値の境界、region、長期利用後の state の作り方は space.md 2 節と 3 節にある。region の区分は実行前に決めてあり、ledger は同じ名前で到達回数を数える。到達が 0 回の region は未計測である。
 
 ## 4. 外から起きること
 
-| 出来事                              | 扱い             | 内容                                                                                  |
-| ----------------------------------- | ---------------- | ------------------------------------------------------------------------------------- |
-| 命令の切れ目での作り直し            | 範囲内           | Durable Object が memory を失う。同じ store、新しい doc で `createDb` を作り直す      |
-| save の間隔                         | 範囲内           | 毎命令、まれ、無し、混合                                                              |
-| 複数の client                       | 範囲内           | 1 つの instance に、複数の `id` の命令が 1 本の列で届く                               |
-| store の呼び出しの途中での作り直し  | 範囲内           | 進行中の `put` は、届くことも届かないこともある                                       |
-| store の呼び出しの失敗              | 範囲内。低い頻度 | `get` / `put` / `delete` の reject、書いた後に reject する `put`、`null` を返す `put` |
-| 2 つの instance                     | 範囲内。低い頻度 | 下の表の並び                                                                          |
-| object の破損、欠落、古い内容の返却 | 範囲外           | 破損からの復旧は作らない                                                              |
-
-命令が同時に走る並びは次のとおり。platform の上で起きる頻度は確かめていない (errata.md 7 節)。
-
-| 並び                                            | 生じる条件                                                                         |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------- |
-| 複数の client の命令                            | 同時にならない。1 つの instance の中で 1 本の列に並ぶ (contract.md 2 節)           |
-| 重い `sql` と他の命令                           | 同時にならない。`sql` が終わるまで他の命令が待つ (`.bench/issues/005.md`)          |
-| 2 つの instance の `save`                       | 古い instance の `put` が進行中に、新しい instance が同じ store を `open` して書く |
-| 同じ instance の `put` と、その後の確認         | `put` が reject を返したが、書き込みは store に入っている                          |
-| アプリが 1 つの store に `createDb` を 2 つ作る | 1 room 1 Durable Object の前提の外                                                 |
+利用 (`use`) と出来事 (`event`) の種類、time の規則、同時実行が起きる条件は space.md 4 節と 5 節にある。object の破損、欠落、古い内容の返却は範囲外で、破損からの復旧は作らない。
 
 ## 5. 判定
 
-安全性の軸。1 回でも崩れたら不具合である。
+step ごとに自動で行う判定である (space.md 7 節)。shadow を使う判定は、node と shadow の結果が一致している間だけ行う。
 
-| 軸       | 成り立つべき性質                                                                                                                                                                                 |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 一意     | store への書き込み (`put` / `delete`) が 1 つ終わるたびに、その時点の store の写しを別の instance で開くと `open` が成功し、`pragma integrity_check` が `ok` を返す                              |
-| 永続     | `save` が成功した後に作り直して開くと、全 page の行、`_style`、`_mark` が save の時点と一致する                                                                                                  |
-| 原子     | どの時点で instance を失っても、作り直して開いた内容は「最後に成功した save」か「進行中だった save」のどちらかと一致する                                                                         |
-| 鎖       | object は image 1 つと delta `SLOTS` 個以下。鎖の外の delta は内容に現れない。障害が無ければ merge の後に delta は残らない。残った delta は次に store を呼ぶ `save` か `open` で消える           |
-| 単一書き | 2 つの instance が書いても store は開ける状態のままで、同じ object を書く save 同士は後の側が reject する。成功した save の内容が消える並びは `.bench/issues/001.md`                             |
-| 上限     | `LIMIT` を超える書き込みは reject し、内容は直前のままである。2 chunk 以上の database で `save` の後の `patch + dirty` は `CHUNK` 未満である                                                     |
-| compile  | 同じ `(op, stat)` は同じ命令列になる。contract.md の制約の外の入力は例外になる。利用者が渡した本文と値は SQL の文に現れず params にだけ現れる                                                  |
-| 装飾     | どの操作列の後も孤児 (tables.md 5 節) は 0 件。本文を空にしても `_style` は残る。`_mark` の `stop` は本文の長さ以下である                                                                        |
-| 窓       | 書き込みの命令の後、登録済みの view は同じ問い合わせを今実行した結果と一致する。`<id>/rows` の行数は `size` 以下で、table の行数に依らない。`leave` の後にその id の key は残らない              |
-| 履歴     | `cell` / `style` の後の `undo` は SQL の値と view を元に戻し、`redo` はやり直す。`window` は履歴に入らない。`sql` は書き込みを含む文を reject し、返す行は `ROWS` 以下である                     |
+安全性の axis。1 回でも失敗したら不具合である。
 
-費用の軸。
+| axis      | 成り立つべき性質                                                                                                                                                                 |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| integrity | store に書き込んだ save の後、および open の後に、store の copy を別の instance で開くと `open` が resolve し、`pragma integrity_check` が `ok` を返す                           |
+| 永続      | save が store に書き込んだ後、store の copy を開いた probe の全 table の内容が、save の時点の shadow の内容と一致する。store を呼ばなかった save の時点の内容は、保存済みの内容と一致する |
+| 原子      | node を失って open し直した内容は、「最後に成功した save」か「実行途中だった save」のどちらかの時点の内容と一致する                                                              |
+| chain     | 障害が無い save と open の後、store の object は image 1 つと chain に繋がる delta だけである。chain の外の delta は内容に現れない                                               |
+| writer    | 他の node の save を知らない node の save は、store に書き込まずに reject する                                                                                                   |
+| 上限      | `LIMIT` を超える 1 回の import は reject し、内容は直前のままである。2 chunk 以上の database で、save の後の `patch + dirty` は `CHUNK` 未満である                               |
+| compile   | 同じ `(op, stat)` は同じ命令列になる。contract.md の制約の外の入力は例外になる。`cell` の本文と `style` の値は SQL の文に現れない                                                |
+| 装飾      | 孤児 (tables.md 5 節) は 0 件。`_mark` の `stop` は本文の長さ以下である                                                                                                          |
+| window    | 登録済みの view は、shadow で同じ window を登録し直した結果と一致する                                                                                                            |
+| 履歴      | `cell` の後の `undo` は行を元に戻し、`redo` はやり直す                                                                                                                           |
+| 一致      | 同じ `Op` は、node と shadow で同じ結果を返す (store の障害が起きた `Op` と、他の node が書き込んだ後の古い node を除く)                                                         |
 
-| 軸         | 測るもの                                                                                                                                       |
+生存性の axis。
+
+| axis       | 測るもの                                                                                                                                       |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 回数       | `save` 1 回の `put` は 1 回以下で、変化が無い `save` は store を呼ばない。`open` と `save` の `get` と `put` の回数は、cost.md 9 節の式の回数を超えない。呼び出しの順序、offset、`delete` の範囲は期待値に持たない (製品の store の呼び出し方を検証 code に写さない) |
-| 式         | scenario の費用 (cost.md 9 節の GET 換算) の、同じ scenario に式を当てた値に対する比                                                           |
-| 丸ごと保存 | 同じ scenario を丸ごと保存で行ったときの費用に対する比                                                                                         |
-| 最良       | 同じ scenario で push と merge の選び方を後から最も安く決めたときの費用 (cost.md 9 節) に対する比                                              |
+| 可用       | store の障害が起きなかった open と save は resolve する                                                                                        |
+| 回数       | save 1 回の put は 1 回以下で、put の宛先は `compile` の出力 (push なら delta、merge なら image) と一致する。変化が無い save は store を呼ばない。open と save の get は cost.md 9 節の回数以下である。save と open 以外の `Op` は store に書き込まない |
+| 式         | scenario の費用 (cost.md 9 節の GET 換算) に対する、同じ scenario に式を当てた値の比                                                           |
+| 丸ごと保存 | scenario の費用に対する、同じ scenario を丸ごと保存で行ったときの費用の比                                                                      |
+| 最良       | scenario の費用に対する、push と merge の選び方を後から最も安く決めたときの費用 (cost.md 9 節) の 2 倍の比                                     |
 
-判定を間引くとき (大きい database の全行比較、`integrity_check`) は、間引き方を台帳の `bounds` に書く。
+`expect` に `axis` を書いた手書きの判定は、その axis に数える。`axis` が無い `expect` は `期待` に数える。
 
 ## 6. 点
 
-| 対象                 | 点                                                                                                                                           |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| 安全性の 10 軸と回数 | その軸を判定した scenario のうち、崩れが 0 件だった scenario の割合 × 100 を切り捨てた整数。判定した scenario が無い軸は 0 点で、未計測と書く |
-| 式                   | scenario ごとの「式の値 ÷ 観測 (1 を超えたら 1)」の平均 × 100 を切り捨てた整数                                                               |
-| 丸ごと保存、最良     | 点にしない。領域ごとの比の最小、中央、最大を台帳に書く                                                                                       |
+| 対象                   | 点                                                                                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 安全性の axis、可用、回数 | その axis を判定した scenario のうち、失敗も `known` も 0 件だった scenario の割合 × 100 を切り捨てた整数                                     |
+| 式、丸ごと保存、最良   | scenario ごとの比 (1 を超えたら 1) の平均 × 100 を切り捨てた整数                                                                                |
 
-合計は 12 軸の 1200 点である。点の単位は判定ではなく scenario である。合計が満点でも、到達が 0 回の領域は確かめていない。
+点の単位は判定ではなく scenario である。合計が満点でも、到達が 0 回の region は確かめていない。
 
 ## 7. scenario
 
-scenario は `.bench/` に置く code で、検証の API を呼ぶ列である。
+scenario は `.bench/` に置く code で、DST API (space.md 6 節) を呼ぶ step の並びである。
 
-| 規則       | 内容                                                                                                                              |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| 手で書ける | store に状態を置く、instance を起こす、止める、命令を送る、障害を入れる、時計を進める、状態を確かめる、を 30 〜 40 行で書ける     |
-| 同じ形式   | seed から作った scenario は、手で書いた scenario と同じ形式の file に書き出せる。書き出した file は seed 無しで同じ結果を再現する |
-| 縮める     | seed で崩れた scenario は、同じ崩れが残る最短の列まで縮めてから書き出す                                                           |
-| 再現       | `.bench/issues/` の issue は、手で書いた scenario を 1 つ以上持ち、1 つの command で走る                                          |
+| 規則         | 内容                                                                                                                              |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| 手書きできる | state を作る、node を起動する、kill する、`Op` を送る、障害を起こす、time を進める、状態を確かめる、を 30 〜 40 行で書ける        |
+| 同じ形式     | seed が生成した scenario は、手書きと同じ形式の file (`.bench/out/seed-<番号>.ts`) に書き出される。その file は seed 無しで同じ結果を再現する |
+| shrink       | seed で失敗した scenario は、`shrink` を指定すると、同じ失敗が残る範囲で step を減らしてから `.bench/fails/` に書き出される       |
+| 再現         | 保留中の issue は `.bench/issues/` に手書きの scenario を 1 つ以上持ち、1 つの command で走る                                     |
+
+| 場所                                         | 内容                                                                    |
+| -------------------------------------------- | ----------------------------------------------------------------------- |
+| `.bench/sim.ts`                              | `@db/server`、`@db/client`、`@db/test` を結ぶ唯一の file                |
+| `.bench/run.mjs`                             | scenario を file ごとの child process で実行する入口                    |
+| `.bench/seed.ts` `.bench/ledger.mjs`         | seed 1 つの生成と実行、ledger の集計                                    |
+| `.bench/hand/` `.bench/issues/` `.bench/fails/` | 手書きの scenario、issue の再現、seed で見つかった失敗               |
+| `.bench/out/`                                | ledger (`<ISO 時刻>.json`) と、seed が生成した scenario。commit しない  |
+| `.bench/data/`                               | CSV (fixtures.md)。読み取り専用                                         |
+
+| command                                                    | 動作                                                                                   |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `node .bench/run.mjs <file …>`                             | file ごとに判定の件数を出力する。未知の失敗があれば exit 1、時間切れは exit 124        |
+| `node .bench/run.mjs .bench/seed.ts <from>-<to> [steps] [shrink]` | seed ごとに child process を起動し、最後に ledger を書く                        |
+| `BENCH_LIMIT=<秒>`                                         | child process 1 つの時間切れ (既定 3600 秒)                                            |
 
 ## 8. 構成
 
-検証 code は `test/` にあり、製品と同じ分け方をする。logical な命令を physical な命令の列に変える compiler と、physical な命令だけを実行する executer である。
+検証 code は `src/test/db` (`@db/test`) にあり、製品と同じ分け方をする。logical な命令 (scenario の 1 step) を physical な命令の配列に変える compiler と、physical な命令だけを実行する executer である。
 
-| package        | 入力 (logical)     | compiler の出力 (physical)               | executer が動かす装置                                               |
-| -------------- | ------------------ | ---------------------------------------- | ------------------------------------------------------------------- |
-| `@test/server` | scenario の 1 手   | 装置への命令の列                         | 渡された製品の instance、模擬 store、論理時計、観測、判定の記録     |
-| `@test/client` | 指定 (seed と設定) | scenario の code を作る命令の列          | scenario の file (`.bench/` に書き出す)                             |
+```mermaid
+flowchart LR
+    T[createTest] --> C[compiler] --> X[executer]
+    C --> PA[parse] --> PL[plan]
+    PA --> SP[space] --> ST[story] --> SM[storm]
+    PL --> A[act] --> W[watch] --> R[rule] --> B[book]
+    X --> S[store]
+    X --> H[host]
+    X --> J[judge]
+```
 
-| 規則 | 内容                                                                                                                                                             |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 実行 | simulation を走らせるのは `@test/server` だけである。手で書いた scenario は `@test/server` と製品だけで走り、`@test/client` を使わない                           |
-| 探索 | `@test/client` は seed から scenario を作るときだけ使う                                                                                                          |
-| 結合 | `@test/server` は製品を import しない。scenario が製品 (`createDb`、定数、wasm) を `@test/server` に渡す                                                         |
-| 依存 | package の境界は製品と同じ規則である (SKILL.md 2 節)。`test/` の `package.json` は `packages.mjs` が directory から書く (contract.md 1 節)                       |
-| 起動 | `node .bench/run.mjs <scenario の file …>`。vite の module runner が file を読み込み、package 名の解決と境界の検査はアプリと同じ `packages.mjs` の plugin が行う |
+| package                    | 種類        | 内容                                                                                         |
+| -------------------------- | ----------- | -------------------------------------------------------------------------------------------- |
+| `@db/test`                 | declarative | DST API。step を `compile` して `execute` する 1 本の列                                      |
+| `@db/test-compiler`        | declarative | `compile(step, facts) = plan(parse(step), facts)`、`explore(指定)`、`print(step の配列)`     |
+| `@db/test-compiler-parse`  | declarative | step ごとの引数の検査の表。`explore` は `storm(story(space(指定)))`                          |
+| `…-parse-space`            | declarative | seed から state の 1 つを決める表                                                            |
+| `…-parse-story`            | declarative | `use` ごとの step の group                                                                   |
+| `…-parse-storm`            | declarative | `event` ごとの step を group の間に挿入する                                                  |
+| `@db/test-compiler-plan`   | declarative | `plan = book(rule(watch(act(step, facts))))`                                                 |
+| `…-plan-act`               | declarative | step が装置に対して行う命令                                                                  |
+| `…-plan-watch`             | declarative | 観測の命令 (store の呼び出しの集計、`stat`、shadow、probe)                                   |
+| `…-plan-rule`              | declarative | 判定の命令                                                                                   |
+| `…-plan-book`              | declarative | register の更新、費用の記録、次の pass の step                                               |
+| `@db/test-executer`        | declarative | physical な命令と装置の対応表、register、`facts`                                             |
+| `…-executer-store`         | declarative | 模擬 store (compare-and-swap、障害、実行途中の put、呼び出しの記録、copy)                    |
+| `…-executer-host`          | declarative | 製品の instance への request (`send`)                                                        |
+| `…-executer-judge`         | declarative | 判定の記録と費用の集計                                                                       |
+| `*-share` `*-object` `*-flow` `*-cost` | procedural | 状態を持たない関数                                                               |
 
-## 9. 台帳
+| 規則   | 内容                                                                                                                                                             |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pass   | 1 step は 1 回以上の pass で実行される。pass ごとに compiler が `facts` (定数、register、開いている node の `stat` と save の種類) から命令を作り、executer が実行する。観測の結果は register に入り、次の pass の `facts` になる |
+| 命令   | physical な命令の operand は文字列、数値、真偽値、null、それらの配列だけである。`Op` は JSON の文字列で渡す。判定の成否は compiler が計算し、命令には結果だけが入る |
+| 装置   | executer は命令を順に実行するだけで、条件分岐を持たない                                                                                                          |
+| 依存   | package の境界は製品と同じ規則である (SKILL.md 2 節)                                                                                                             |
 
-1 回の実行につき `.bench/out/<ISO 時刻>.json` を 1 つ書く。
+`sim.ts` が受け取る request (`send`) は `const` `boot` `kill` `run` `execute` `compile` `stat` `view` `csv` の 9 種で、模擬 store への request (`serve`) は `get` `put` `delete` の 3 種である。
 
-| key          | 中身                                                                            |
-| ------------ | ------------------------------------------------------------------------------- |
-| `at`         | 実行した時刻                                                                    |
-| `spec`       | seed の範囲と設定                                                               |
-| `bounds`     | 3 節と 4 節の区切りと頻度の実際の値、判定の間引き方                             |
-| `regions`    | 領域ごとの到達回数                                                              |
-| `axes`       | 軸ごとの判定した scenario の数、崩れが 0 件の scenario の数、点                 |
-| `score`      | 合計                                                                            |
-| `cost`       | 領域ごとの費用 (観測、式、丸ごと保存、最良) と比                                |
-| `known`      | 既知の issue ごとの崩れの件数                                                   |
-| `failures`   | 崩れた判定ごとに、seed、軸、書き出した scenario の file、期待した値、観測した値 |
-| `store`      | 全 simulation の `get` / `put` / `delete` の回数と byte                         |
-| `unmeasured` | 判定しなかったことと、その理由                                                  |
-| `seconds`    | 所要時間                                                                        |
+| physical な命令                                  | 装置     | 動作                                                                 |
+| ------------------------------------------------ | -------- | -------------------------------------------------------------------- |
+| `boot` `kill` `call` `cast` `park`               | host     | instance の起動と削除、`Op` の送信 (待つ / 待たない)、put の停止を待つ |
+| `stat` `tree` `digest` `feed` `csv`              | host     | `stat`、view の読み取り、全 table の hash、生成した行の import、CSV の import |
+| `fork` `fail` `hold` `free` `span` `tally` `list` | store   | store の copy、障害の予約、put の停止と再開、呼び出しの集計、object の一覧 |
+| `check` `bill` `say` `close`                     | judge    | 判定の記録、費用の記録、note、report                                 |
+| `set` `ret` `then`                               | register | register の更新、step の返り値、次の pass の step                    |
+
+## 9. ledger
+
+seed の範囲を 1 回実行するごとに `.bench/out/<ISO 時刻>.json` を 1 つ書く。
+
+| key          | 内容                                                                              |
+| ------------ | --------------------------------------------------------------------------------- |
+| `at`         | 実行した時刻                                                                      |
+| `spec`       | seed の範囲、step 数、`shrink` の有無                                             |
+| `bounds`     | 製品の定数と、region の名前の一覧                                                 |
+| `regions`    | region ごとの到達回数                                                             |
+| `axes`       | axis ごとの、判定した scenario の数、失敗が 0 件の scenario の数、点              |
+| `score`      | 合計                                                                              |
+| `cost`       | `use / event / size` ごとの費用 (観測、式、丸ごと保存、最良) の合計               |
+| `known`      | 保留中の issue ごとの、失敗があった scenario の数                                 |
+| `failures`   | 失敗した判定ごとに、seed、scenario の file、axis、期待と観測を含む文、`known`      |
+| `store`      | 全 scenario の `get` / `put` / `delete` の回数と byte 数                          |
+| `unmeasured` | 到達が 0 回の region                                                              |
+| `seconds`    | 所要時間                                                                          |
 
 ## 10. 既知の issue
 
-次の 6 件は、2026-11-11 の利用者の判断で未修正のままである。判定は緩めず、崩れは既知として別に数える。
+次の issue は、user の判断で未修正のまま保留している。判定は緩めず、失敗は `known` として別に数える (space.md 8 節)。
 
-| 番号 | 内容                                                                            |
-| ---- | ------------------------------------------------------------------------------- |
-| 001  | 2 つの instance の merge と push が交差すると、保存済みの delta が消える        |
-| 002  | まだ無い行への `cell` / `style` が履歴に残り、後でできた行に undo / redo が書く |
-| 003  | `put` が書いた後に reject すると、その instance は開き直すまで save できない    |
-| 004  | rollback された書き込みの後の `save` が、内容の同じ page を put する            |
-| 005  | 重い `sql` を止める仕組みが無い。終わらない文は seed から生成しない             |
-| 006  | chunk 数が `ROOM` を超える database では、全走査のたびに chunk を読み直す       |
+| 番号 | 内容                                                                              | scenario                 |
+| ---- | --------------------------------------------------------------------------------- | ------------------------ |
+| 001  | 2 つの node の merge と push が交差すると、保存済みの delta が消える              | `.bench/issues/001.ts`   |
+| 002  | まだ無い行への `cell` / `style` が履歴に残り、後でできた行に undo / redo が書く   | `.bench/issues/002.ts`   |
+| 003  | put が書き込んだ後に reject すると、その node は open し直すまで save できない    | `.bench/issues/003.ts`   |
+| 004  | rollback された書き込みの後の save が、内容の同じ page を put する                | `.bench/issues/004.ts`   |
+| 005  | 重い `sql` を止める仕組みが無い。終わらない文は seed から生成しない               | `.bench/issues/005.ts` `005b.ts` |
+| 006  | chunk 数が `ROOM` を超える database では、全走査のたびに chunk を読み直す         | `.bench/issues/006.ts` `006b.ts` |
+| 007  | open が delta の get の失敗で reject した後、次の push が `store conflict` で reject する (contract.md 3 節) | `.bench/hand/halfopen.ts` |
 
 ## 11. 見えないものと、点にしないこと
 
-期待値が同じ製品の別の観測なので、両側で同じ間違いをする不具合 (復号と符号化が対称に間違う、命令の意味を取り違える) は、この検証では見えない。それを見るのは手で書いた値を持つ scenario だけである。
+期待値が同じ製品の別の instance の観測なので、両方で同じ間違いをする不具合 (decode と encode が対称に間違う、`Op` の意味を取り違える) は、この検証では見えない。それを見るのは、手書きの値を持つ scenario だけである。
 
-領域を狭めて通す、崩れた seed を外す、判定を消す、のどれかを行った実行は、点ではなく台帳の `bounds` と `regions` と `failures` の食い違いとして現れる。judge はそれを見る。
+node と shadow の結果が分かれた後 (store の障害で `Op` が reject した後) は、その node を open し直すまで、shadow を使う判定 (永続、一致、window、装飾) を行わない。
 
-## 12. 前の検証 code の振り返り (2026-11-11)
+region を狭めて通す、失敗した seed を外す、判定を消す、のどれかを行った実行は、点ではなく ledger の `bounds` と `regions` と `failures` の食い違いとして現れる。judge はそれを見る。
 
-前の検証 code (`test/*.mjs` 11 file と `.bench/run.mjs`、1,000 行、118 KB) は捨てた。続けることと、繰り返さないことは次のとおり。
+## 12. これまでの検証 code の振り返り
 
-| Keep                                       | 根拠                                                                           |
+| 版                         | 観測                                                                                                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 回目 (2026-11-11 に削除) | 外から `Op` を乱数で送る形で、replica の state は `Op` の積み重ねでしか作れなかった。image と delta の decode、`Op` の意味の model、save の式を検証 code に書いていた。点は判定の回数の割合だった |
+| 2 回目 (2026-11-16 に削除) | 製品の API の object を検証 package の引数に渡していた。executer の package 同士が多数の edge で繋がっていた。seed の点は最初からほぼ満点だった                 |
+
+| 続けること                                 | 根拠                                                                           |
 | ------------------------------------------ | ------------------------------------------------------------------------------ |
-| seed から同じ結果を再現する                | 6 件の issue の全てに再現 command が付いた                                     |
+| seed から同じ結果を再現する                | issue の全てに再現 command が付いた                                            |
 | store の境界での障害と、呼び出しの記録     | 003 と、delete の失敗の扱いを見つけた                                          |
-| 2 つの instance の並び                     | 001 を見つけた                                                                 |
-| 判定を緩めず、既知として別に数える         | 001 と 004 の件数を巡ごとに追えた                                              |
-| 観測を 1 か所変えて、判定が気づくかを見る  | 65 種を試し、件数と長さしか見ていない判定を見つけた                            |
-| 崩れた列を縮める                           | issue の操作列は 3 〜 12 手になった                                            |
-| 実装者と、検証 code の書き手を分ける       | subagent の記録 11 個に、この repository の `src/` の `.ts` / `.tsx` の中身を読んだ呼び出しは無い (行数を数えた 1 回と `package.json` の読みだけ) |
+| 2 つの node の並び                         | 001 を見つけた                                                                 |
+| 判定を緩めず、`known` として別に数える     | 001 と 004 の件数を実行ごとに追えた                                            |
+| 観測を 1 か所変えて、判定が気づくかを見る  | store の bridge で delta の put を落とす、delete を無視する、の 2 つを試し、永続と chain の判定が失敗した |
+| 実装者と、検証 code の書き手を分ける       | 検証 code を書き終えるまで `src/server` と `src/client` を読まない             |
 
-| Problem                                | 観測                                                                                                                                                              |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 外から命令を乱数で流す形だった         | レプリカの状態は命令の積み重ねでしか作れなかった。seed の 70% は小さい database から始まり、領域ごとの到達回数は台帳に無い。記録にある delta の最大は 4 である    |
-| 製品と同じ機能を検証 code に書いた     | image と delta の復号 (47 行)、命令の意味の model (163 行)、save の式、定数 6 つ。出どころは contract.md で、contract.md は実装者が `src/` を見て書いた           |
-| 崩れを仕様の側で吸収した               | 夜間に contract.md を製品の動きに合わせて 5 か所書き直し、判定に例外を足した (`disk I/O error` を判定しない、内容の判定を止める、など)                            |
-| 点が判定の回数の割合だった             | 190 seed のうち 81 seed で崩れた巡 (2,772 件) が 996 / 1000 だった                                                                                                |
-| 手で書けなかった                       | scenario は生成器の内部形式だった。issue の再現のために runner に専用の分岐を足した                                                                               |
-| 行数の上限を横詰めで守った             | 1,000 行で 118 KB。生成の file は 210 行で 32 KB だった                                                                                                           |
-
-| Try                                                                                           | 書いた場所          |
-| --------------------------------------------------------------------------------------------- | ------------------- |
-| 状態空間を先に決め、領域ごとの到達回数を台帳に出す                                            | 3 節、9 節          |
-| レプリカを、製品の physical な命令と store の写しで直接動かす                                 | 3 節                |
-| 製品に在る機能を検証 code に書かない。期待値は手で書いた値か、同じ製品の別の観測にする        | 2 節                |
-| `test/` は `src/` を import しない。結合は `.bench/` の scenario だけにする                   | 2 節、8 節          |
-| scenario を手で書ける形式にし、seed は同じ形式の code を生成する                              | 7 節                |
-| 点の単位を判定から scenario に変える                                                          | 6 節                |
-| 仕様を製品に合わせて書き直したときは、issue と同じ重さで `.bench/log.md` に残す               | 実装者              |
-| 検証 agent が読んだ file を、終わった後に記録から確かめる                                     | 実装者              |
-| package に分け、1 file 100 行ほどに保ち、行を横に詰めない                                     | `agents/bench.md`   |
+| 今の版で変えたこと                                                                 | 書いた場所         |
+| ---------------------------------------------------------------------------------- | ------------------ |
+| 状態空間の境界と region を先に決め、到達回数を ledger に出す                       | space.md 2 節      |
+| 長期利用後の state を、製品の physical な命令と store の copy で直接作る           | space.md 3 節      |
+| 利用 (`use`) と出来事 (`event`) を分け、time で進む scenario を seed から生成する  | space.md 4 節      |
+| `@db/test` は製品を import せず、object も受け取らない。data だけでやり取りする    | 2 節、8 節         |
+| compiler が判定まで計算し、executer は命令を順に実行するだけにする                 | 8 節               |
+| 点の単位を scenario にし、生存性 (可用、費用) を axis に入れる                     | 5 節、6 節         |

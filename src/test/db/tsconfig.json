@@ -18,35 +18,59 @@
                         "@db/test-compiler-share": [
                                 "./packages/declarative/compiler/packages/procedural/share/src/index.ts"
                         ],
-                        "@db/test-compiler-parse-tmp": [
-                                "./packages/declarative/compiler/packages/declarative/parse/packages/declarative/tmp/src/index.tsx"
+                        "@db/test-compiler-parse-space": [
+                                "./packages/declarative/compiler/packages/declarative/parse/packages/declarative/space/src/index.tsx"
                         ],
-                        "@db/test-compiler-parse-procedural-tmp": [
-                                "./packages/declarative/compiler/packages/declarative/parse/packages/procedural/tmp/src/index.ts"
+                        "@db/test-compiler-parse-share": [
+                                "./packages/declarative/compiler/packages/declarative/parse/packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/test-compiler-parse-storm": [
+                                "./packages/declarative/compiler/packages/declarative/parse/packages/declarative/storm/src/index.tsx"
+                        ],
+                        "@db/test-compiler-parse-story": [
+                                "./packages/declarative/compiler/packages/declarative/parse/packages/declarative/story/src/index.tsx"
                         ],
                         "@db/test-compiler-plan": [
                                 "./packages/declarative/compiler/packages/declarative/plan/src/index.tsx"
                         ],
-                        "@db/test-compiler-plan-tmp": [
-                                "./packages/declarative/compiler/packages/declarative/plan/packages/declarative/tmp/src/index.tsx"
+                        "@db/test-compiler-plan-act": [
+                                "./packages/declarative/compiler/packages/declarative/plan/packages/declarative/act/src/index.tsx"
                         ],
-                        "@db/test-compiler-plan-procedural-tmp": [
-                                "./packages/declarative/compiler/packages/declarative/plan/packages/procedural/tmp/src/index.ts"
+                        "@db/test-compiler-plan-share": [
+                                "./packages/declarative/compiler/packages/declarative/plan/packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/test-compiler-plan-book": [
+                                "./packages/declarative/compiler/packages/declarative/plan/packages/declarative/book/src/index.tsx"
+                        ],
+                        "@db/test-compiler-plan-rule": [
+                                "./packages/declarative/compiler/packages/declarative/plan/packages/declarative/rule/src/index.tsx"
+                        ],
+                        "@db/test-compiler-plan-watch": [
+                                "./packages/declarative/compiler/packages/declarative/plan/packages/declarative/watch/src/index.tsx"
                         ],
                         "@db/test-executer": [
                                 "./packages/declarative/executer/src/index.tsx"
                         ],
-                        "@db/test-executer-tmp": [
-                                "./packages/declarative/executer/packages/declarative/tmp/src/index.tsx"
+                        "@db/test-executer-host": [
+                                "./packages/declarative/executer/packages/declarative/host/src/index.tsx"
                         ],
                         "@db/test-executer-share": [
                                 "./packages/declarative/executer/packages/procedural/share/src/index.ts"
                         ],
-                        "@db/test-executer-tmp-tmp": [
-                                "./packages/declarative/executer/packages/declarative/tmp/packages/declarative/tmp/src/index.tsx"
+                        "@db/test-executer-host-flow": [
+                                "./packages/declarative/executer/packages/declarative/host/packages/procedural/flow/src/index.ts"
                         ],
-                        "@db/test-executer-tmp-procedural-tmp": [
-                                "./packages/declarative/executer/packages/declarative/tmp/packages/procedural/tmp/src/index.ts"
+                        "@db/test-executer-judge": [
+                                "./packages/declarative/executer/packages/declarative/judge/src/index.tsx"
+                        ],
+                        "@db/test-executer-judge-cost": [
+                                "./packages/declarative/executer/packages/declarative/judge/packages/procedural/cost/src/index.ts"
+                        ],
+                        "@db/test-executer-store": [
+                                "./packages/declarative/executer/packages/declarative/store/src/index.tsx"
+                        ],
+                        "@db/test-executer-store-object": [
+                                "./packages/declarative/executer/packages/declarative/store/packages/procedural/object/src/index.ts"
                         ]
                 }
         },

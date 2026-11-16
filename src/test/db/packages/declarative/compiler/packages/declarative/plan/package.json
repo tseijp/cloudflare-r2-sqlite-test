@@ -6,7 +6,10 @@
         "dependencies": {
                 "@db/test-share": "workspace:*",
                 "@db/test-compiler-share": "workspace:*",
-                "@db/test-compiler-plan-tmp": "workspace:*",
-                "@db/test-compiler-plan-procedural-tmp": "workspace:*"
+                "@db/test-compiler-plan-act": "workspace:*",
+                "@db/test-compiler-plan-book": "workspace:*",
+                "@db/test-compiler-plan-rule": "workspace:*",
+                "@db/test-compiler-plan-watch": "workspace:*",
+                "@db/test-compiler-plan-share": "workspace:*"
         }
 }

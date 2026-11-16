@@ -1,0 +1,11 @@
+{
+        "name": "@db/test-compiler-plan-rule",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.tsx",
+        "dependencies": {
+                "@db/test-share": "workspace:*",
+                "@db/test-compiler-share": "workspace:*",
+                "@db/test-compiler-plan-share": "workspace:*"
+        }
+}

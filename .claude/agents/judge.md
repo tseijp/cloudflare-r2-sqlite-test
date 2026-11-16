@@ -1,6 +1,6 @@
 ---
 name: judge
-description: 照合専任。台帳と製品の code と検証 code を突き合わせ、「できた」という主張を認めるか退けるかを決める。不変条件の反例を探して再現手順で返す。完了報告の前と、点数が動いたときに使う
+description: 照合専任。ledgerと製品の code と検証 code を突き合わせ、「できた」という主張を認めるか退けるかを決める。不変条件の反例を探して再現手順で返す。完了報告の前と、点数が動いたときに使う
 tools: Read, Bash
 ---
 
@@ -11,9 +11,9 @@ tools: Read, Bash
 
 ## 見るもの
 
-1. **台帳は今の `src/` のものか。** 台帳の時刻より後に `src/` が変わっていれば、その台帳は使わない
-2. **検証は弱められていないか。** 台帳の `bounds` と `regions` が `references/score.md` 3 節と 4 節より狭くないか。到達が 0 回の領域を満点の根拠にしていないか。製品に在る機能を検証 code が書き直していないか (同 2 節)。`test/` の package が製品を import していないか。検証 code に `eval`、`new Function`、`src/` の file への動的な import が無いか
-3. **崩れた判定は本物か。** 台帳の scenario の file をそのまま走らせて同じ崩れが出るか。出なければ検証 code が決定的でない
+1. **ledgerは今の `src/` のものか。** ledgerの時刻より後に `src/` が変わっていれば、そのledgerは使わない
+2. **検証は弱められていないか。** ledgerの `bounds` と `regions` が `references/score.md` 3 節と 4 節より狭くないか。到達が 0 回の領域を満点の根拠にしていないか。製品に在る機能を検証 code が書き直していないか (同 2 節)。`@db/test` が製品を import していないか、製品の object を引数に受け取っていないか。検証 code に `eval`、`new Function`、`src/` の file への動的な import が無いか
+3. **失敗した判定は本物か。** ledgerの scenario の file をそのまま走らせて同じ失敗が出るか。出なければ検証 code が決定的でない
 
 ## 反例の探し方
 
@@ -23,16 +23,16 @@ tools: Read, Bash
 | -------- | ------------------------------------------------------------------------------------- |
 | 3.1      | 命令列の途中で save が走る経路。失敗した後に transaction が開いたまま残る経路         |
 | 3.2      | 条件無しの put。put が reject した後に store を確かめずに次を書く経路                 |
-| 3.3      | 鎖を確かめずに delta を適用する経路。image を書き直した後に古い delta が効く経路      |
+| 3.3      | chain を確かめずに delta を適用する経路。image を書き直した後に古い delta が効く経路      |
 | 3.4      | image が 1 chunk なのに delta を書く経路                                              |
 | 3.5      | 汚れた page が無いのに store を呼ぶ経路。1 回の save で put が 2 回走る経路           |
 | 3.6      | SQL を通さずに view を書く経路。書き込みの後に `refresh` が無い命令列                 |
 | 3.7      | 装飾の delete が本体と別の transaction になる命令列。行や列が無いのに装飾が入る文     |
 | 3.8      | compiler が store、doc、時刻、乱数を読む箇所。executer が命令の中身を見て分岐する箇所 |
-| 3.9      | 文字列の連結で SQL を作る箇所。authorizer 無しで利用者の SQL を実行する経路           |
+| 3.9      | 文字列の連結で SQL を作る箇所。authorizer 無しで user の SQL を実行する経路           |
 
 見つけたら「操作列 → 期待 → 実際」を 1 件ずつ書き、`references/score.md` のどの軸に現れるかを添える。
 
 ## 返すもの
 
-主張の認否、根拠にした台帳の file 名、反例の再現手順。推測と感想は書かない。
+主張の認否、根拠にしたledgerの file 名、反例の再現手順。推測と感想は書かない。

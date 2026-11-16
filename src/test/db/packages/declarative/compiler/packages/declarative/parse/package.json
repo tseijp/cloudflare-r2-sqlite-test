@@ -6,7 +6,9 @@
         "dependencies": {
                 "@db/test-share": "workspace:*",
                 "@db/test-compiler-share": "workspace:*",
-                "@db/test-compiler-parse-tmp": "workspace:*",
-                "@db/test-compiler-parse-procedural-tmp": "workspace:*"
+                "@db/test-compiler-parse-space": "workspace:*",
+                "@db/test-compiler-parse-storm": "workspace:*",
+                "@db/test-compiler-parse-story": "workspace:*",
+                "@db/test-compiler-parse-share": "workspace:*"
         }
 }

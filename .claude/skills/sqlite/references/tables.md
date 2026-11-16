@@ -26,7 +26,7 @@ erDiagram
 
 | 使い方            | 正規形                                  | 採用形                                                                  |
 | ----------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| 窓を読む          | CELL を行の範囲で絞り、列の数だけ pivot | `select * from "page" where "_id" >= ? order by "_id" limit ?`          |
+| window を読む          | CELL を行の範囲で絞り、列の数だけ pivot | `select * from "page" where "_id" >= ? order by "_id" limit ?`          |
 | cell の確定       | CELL の upsert 1 行                     | `update "page" set "col" = ? where "_id" = ? and "col" is not ?`        |
 | 行の追加          | ROW 1 行 (CELL は無くてよい)            | `insert into "page" default values returning "_id"`                     |
 | 行の削除          | ROW の delete と cascade                | `delete from "page" …` と `_style` / `_mark` の delete を 1 transaction |
@@ -35,10 +35,10 @@ erDiagram
 | 列の削除          | COLUMN の delete と cascade             | `alter table … drop column …` と装飾の delete を 1 transaction          |
 | 取込              | ROW と CELL を行 × 列 件                | `insert into "page" (…) select value ->> 0, … from json_each(?)`        |
 | 集計 (LLM の SQL) | pivot してから集計                      | `select "col", count(*) from "page" group by "col"`                     |
-| 窓の装飾を読む    | STYLE / MARK を行の範囲で               | `… where "page" = ? and "row" in (窓の _id)`                            |
+| window の装飾を読む    | STYLE / MARK を行の範囲で               | `… where "page" = ? and "row" in (window の _id)`                            |
 | 列の一覧と幅      | COLUMN を page で                       | `pragma_table_info(?)` に `_style` の `row = 0` を left join            |
 
-正規形の難点は窓と集計に集まる。どちらも pivot が要り、SQL が列数に比例して長くなり、1 cell が 1 行になるので同じ窓が触る leaf が増える。正規形の利点である「列の操作が DML で済むこと」は、`ADD COLUMN` と `RENAME COLUMN` が schema の page だけを書くことで足りる。
+正規形の難点は window と集計に集まる。どちらも pivot が要り、SQL が列数に比例して長くなり、1 cell が 1 行になるので同じ window が触る leaf が増える。正規形の利点である「列の操作が DML で済むこと」は、`ADD COLUMN` と `RENAME COLUMN` が schema の page だけを書くことで足りる。
 
 ## 3. 到達点 (採用形)
 
@@ -46,7 +46,7 @@ erDiagram
 erDiagram
     PAGE_TABLE ||--o{ STYLE : "(page, row, col)"
     PAGE_TABLE ||--o{ MARK : "(page, row, col)"
-    PAGE_TABLE { int _id PK  text 利用者の列 }
+    PAGE_TABLE { int _id PK  text user_column }
     STYLE { text page PK  int row PK  text col PK  text name PK  text value }
     MARK { text page PK  int row PK  text col PK  int start PK  text name PK  int stop  text value }
 ```
@@ -62,7 +62,7 @@ erDiagram
 
 ## 4. 崩し方ごとの根拠
 
-**列を物理の列にする。** 窓と集計が 1 文になり、行の全 cell が同じ leaf に載る。引き換えに `DROP COLUMN` が table 全体の書き直しになる。
+**列を物理の列にする。**window と集計が 1 文になり、行の全 cell が同じ leaf に載る。引き換えに `DROP COLUMN` が table 全体の書き直しになる。
 
 **列の台帳を持たない。** 列の存在を別 table にも書くと、同じ事実が 2 か所になる。幅だけを `_style` に置き、行が無ければ既定の幅とする。`_style` に行があっても列が在ることにはならない。
 
@@ -72,9 +72,9 @@ erDiagram
 
 **外部 key を使わない。** page ごとに table が違うので参照先を書けない。行、列、page の削除は装飾の delete と同じ transaction に並べる。装飾の insert は `where exists (その行) and exists (その列)` を付けた `insert … select` にして、無い位置には書けないようにする。
 
-**page table に index を作らない。** index は行の追加で書く page を増やし、`DROP COLUMN` を拒む。窓は rowid の範囲読みなので index は要らない。並べ替えと絞り込みは全走査になる。
+**page table に index を作らない。** index は行の追加で書く page を増やし、`DROP COLUMN` を拒む。window は rowid の範囲読みなので index は要らない。並べ替えと絞り込みは全走査になる。
 
-**`_id` を縦の位置にする。** `count(*)` も `offset` も leaf を端から読む。`max("_id")` と `"_id" >= ?` は木の深さぶんの page で済む。行を消すと番号が欠けるので、窓は「`_id >= top` の先頭 n 行」で読む。
+**`_id` を縦の位置にする。** `count(*)` も `offset` も leaf を端から読む。`max("_id")` と `"_id" >= ?` は木の深さぶんの page で済む。行を消すと番号が欠けるので、window は「`_id >= top` の先頭 n 行」で読む。
 
 **`_id` を使い回さない。** `AUTOINCREMENT` を付けない rowid は、末尾の行を消すと同じ番号を次の行に振る。装飾も編集の履歴も `(page, _id, 列名)` を key にするので、番号が使い回されると消えた行宛ての undo が別の行に書かれる。`AUTOINCREMENT` は振った最大の番号を `sqlite_sequence` に残す。引き換えに行の追加が `sqlite_sequence` の leaf も書く。
 
