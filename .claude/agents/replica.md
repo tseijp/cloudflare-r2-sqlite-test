@@ -15,7 +15,7 @@ tools: Read, Bash
 
 | 観点   | 確かめること                                                                                                                                                                              |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 書く側 | 1 回の save の put が 1 回か。汚れた page が 0 のとき store を呼ばないか。image は前の etag、delta は「無いこと」を条件に書いているか。put の結果が出るまで memory の状態を進めていないか |
+| 書く側 | 1 回の save の put が 1 回か。dirty な page が 0 のとき store を呼ばないか。image は前の etag、delta は「無いこと」を条件に書いているか。put の結果が出るまで memory の状態を進めていないか |
 | 読む側 | open の GET が「image の先頭 1 回 + (2 chunk 以上なら) delta の数 + 1」か。chunk を取る GET が image の etag を確かめているか。同じ chunk を cache にあるのに取り直していないか           |
 | chain     | delta の `prev` を 1 つ前の etag と比べているか。繋がらない delta を適用せず消しているか。merge の後に古い delta を消しているか。消し損ねた delta が次の put の前に消えるか               |
 | merge  | `stat` の式 (`references/cost.md` 4 節) どおりに push と merge が選ばれるか。merge が古い image を 1 回で読み、全 chunk を書き、etag を条件にしているか                                   |

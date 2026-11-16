@@ -266,9 +266,9 @@ export default await t.done()
 | put が書いた後に失敗した場合 | その起動中の保存は停止。開き直すと object storage の内容から再開 |
 | 履歴                         | Durable Object の生存期間に限定                                  |
 
-### 4.12. 現状 (2026-11-10)
+### 4.12. 現状 (2026-11-16)
 
-server 側・client 側・アプリ 3 file・規約文書は実装済み。実装者は node を実行できない制約の下で書いており、開発 server と workerd の上での起動は未確認。検証 code は作成と実行の途中で、台帳は未作成。転送速度と圧縮比は未計測で、merge の式の定数 (2048) は仮の値。
+server 側・client 側・アプリ 3 file・規約文書は実装済み。開発 server と workerd の上での起動は未確認。検証 code (`src/test/db` と `.bench/`) は node で実行済み。手書きの scenario 6 件 (`.bench/hand/`) は 5 件が pass で、`halfopen.ts` は issue 007 を `known` として再現。issue の scenario 8 件 (`.bench/issues/`) は、保留中の 001 〜 006 を `known` として再現 (`005b.ts` は時間切れで exit 124、`006b.ts` は pass)。型検査 (tsc) は未実行。転送速度と圧縮比は未計測で、merge の式の定数 (2048) は仮の値。
 
 ### 4.13. 文書の所在
 

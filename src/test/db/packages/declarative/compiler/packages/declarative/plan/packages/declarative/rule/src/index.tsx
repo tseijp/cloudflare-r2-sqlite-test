@@ -14,7 +14,7 @@ const _ran: Rule = (draft) => {
                 ...(via === 'run' ? [check('compile', isSame(plan, at('c2')), '同じ (op, stat) は同じ命令列になる')] : []),
                 ...(via === 'run' && token && isOk(plan) ? [check('compile', !sqlOf(plan.ok).includes(token), '本文と値は SQL の文に現れない')] : []),
                 check('回数', io.put + io.delete === 0, 'save と open の他は store に書かない'),
-                ...(isSync && isFresh && io.fail === 0 ? [check('一致', isSame(out, reg[key(twin, 'out')]), `同じ命令はshadow と同じ結果を返す。node ${json(out).slice(0, 120)} shadow ${json(reg[key(twin, 'out')]).slice(0, 120)}`, known)] : []),
+                ...(isSync && isFresh && io.fail === 0 ? [check('一致', isSame(out, reg[key(twin, 'out')]), `同じ命令は shadow と同じ結果を返す。node ${json(out).slice(0, 120)} shadow ${json(reg[key(twin, 'out')]).slice(0, 120)}`, known)] : []),
         ]
 }
 
@@ -28,7 +28,7 @@ const _RULE: Record<string, Rule> = {
                         check('可用', true, 'store が応じるとき open は解決する'),
                         check('回数', io.get <= (stat.base <= K.CHUNK ? 1 : 2 + stat.deltas), `open の get は式の回数以下。観測 ${io.get}`),
                         check('回数', io.put === 0, 'open は put しない'),
-                        check('chain', seqs.length === (stat.base > 0 ? 1 : 0) + stat.deltas, `open の後にchain の外の delta は残らない。object ${json(seqs)} deltas ${stat.deltas}`, known),
+                        check('chain', seqs.length === (stat.base > 0 ? 1 : 0) + stat.deltas, `open の後に chain の外の delta は残らない。object ${json(seqs)} deltas ${stat.deltas}`, known),
                         check('integrity', isOk(reg[key(twin, 'out')]), 'open の後の store の copy を別の instance で開ける'),
                         ...(typeof reg.saved === 'number' ? [check('原子', [reg.saved, ...reg.maybe].includes(sum), '開き直した内容は、最後に成功した save か進行中だった save と一致する', known)] : []),
                 ]
@@ -48,7 +48,7 @@ const _RULE: Record<string, Rule> = {
                         check('回数', (kind === 'merge' ? io.image : io.delta) === 1, `put の宛先は compile の出力 (${kind}) と一致する`),
                         ...(at('hurt') ? [] : [check('回数', io.get <= (kind === 'merge' && was.base > K.CHUNK ? 1 : 0), `save の get は式の回数以下。観測 ${io.get}`)]),
                         check('上限', stat.base <= K.CHUNK || stat.patch + stat.dirty < K.CHUNK, '2 chunk 以上の database で save の後の patch + dirty は CHUNK 未満'),
-                        ...(io.fail === 0 ? [check('chain', seqs.length === 1 + stat.deltas, `障害が無い save の後にchain の外の delta は残らない。object ${json(seqs)} deltas ${stat.deltas}`, known)] : []),
+                        ...(io.fail === 0 ? [check('chain', seqs.length === 1 + stat.deltas, `障害が無い save の後に chain の外の delta は残らない。object ${json(seqs)} deltas ${stat.deltas}`, known)] : []),
                         ...soundOf(reg),
                         ...(isSync ? [check('永続', isSame(reg['P.sum'], at('pend')), 'save が成功した store の内容は、save の時点の内容と一致する', known)] : []),
                 ]

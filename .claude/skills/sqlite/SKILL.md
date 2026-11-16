@@ -12,13 +12,14 @@ description: 方眼紙型 spreadsheet の 1 file を 1 つの SQLite database �
 | 言葉      | 意味                                                                                 | DBMS の言葉での位置づけ              |
 | --------- | ------------------------------------------------------------------------------------ | ------------------------------------ |
 | page      | SQLite の 4096 byte の固定長 block                                                   | pager が扱う単位                     |
-| page 層   | VFS として SQLite に file を見せる層。chunk の cache、保存前の page、汚れた page 番号 | buffer pool + dirty page table       |
+| page 層   | VFS として SQLite に file を見せる層。chunk の cache、保存前の page、dirty な page の番号 | buffer pool + dirty page table       |
 | chunk     | 連続する 512 page。image の圧縮と range GET の単位                                   | extent                               |
 | image     | 全 page を chunk ごとに gzip して並べた object (番号 0)                              | checkpoint 済みの database file      |
 | delta     | 1 回の save で書き換わった page の集合 (番号 1 〜)                                   | redo log の 1 segment (page image)   |
-| chain        | delta が 1 つ前の object の etag を持つことで決まる順序                              | log sequence の連続性                |
-| merge     | image と全 delta と汚れた page を 1 つの image に書き直すこと                        | checkpoint                           |
+| chain     | delta が 1 つ前の object の etag を持つことで決まる順序                              | log sequence の連続性                |
+| merge     | image と全 delta とdirty な page を 1 つの image に書き直すこと                        | checkpoint                           |
 | view      | 登録された問い合わせと、その結果を yjs に載せたもの                                  | materialized view                    |
+| window    | 1 つの client が表示している行の範囲 (page、top、size)。view を登録する単位            | cursor の範囲                        |
 | logical な命令 | user と LLM がしたいこと (`cell`、`row.add`、`window`、`save` …)               | SQL 文に当たる                       |
 | physical な命令 | 装置 1 つへの操作 (`sql`、`view`、`push`、`merge` …)                           | bytecode に当たる                    |
 
@@ -80,7 +81,7 @@ delta n は object n − 1 の etag を持つ。image を書き直すと etag �
 
 ### 3.5. 変化が無ければ store を呼ばない
 
-save の命令列は `stat` だけから決まり、汚れた page が 0 なら空になる。push か merge かも同じ式で決まる (cost.md 4 節)。汚れた page は「SQLite が file に書いた page」で数える。rollback された transaction が書き戻した page も数に入るので、その直後の save は内容の同じ page を put する (`.bench/issues/004.ts`)。
+save の命令列は `stat` だけから決まり、dirty な page が 0 なら空になる。push か merge かも同じ式で決まる (cost.md 4 節)。dirty な page は「SQLite が file に書いた page」で数える。rollback された transaction が書き戻した page も数に入るので、その直後の save は内容の同じ page を put する (`.bench/issues/004.ts`)。
 
 ### 3.6. SQL だけが正で、tree は copy である
 

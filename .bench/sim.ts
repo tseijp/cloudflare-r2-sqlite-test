@@ -43,24 +43,24 @@ export const fixtures = () =>
         )
 
 export const sim = (options: { title?: string } = {}) => {
-        const nodes = new Map<string, any>()
-        const docs = new Map<string, Y.Doc>()
-        const bridge = (store: string, id: string) => ({
+        const _nodes = new Map<string, any>()
+        const _docs = new Map<string, Y.Doc>()
+        const _bridge = (store: string, id: string) => ({
                 get: (seq: number, offset?: number, length?: number) => t.serve(['get', store, id, seq, offset, length]),
                 put: (seq: number, bytes: Uint8Array, tag: string) => t.serve(['put', store, id, seq, bytes, tag]),
                 delete: (seqs: number[]) => t.serve(['delete', store, id, seqs]),
         })
-        const HOST: Record<string, (...args: any[]) => any> = {
+        const _HOST: Record<string, (...args: any[]) => any> = {
                 const: () => K,
-                boot: (id, store) => void nodes.set(id, createDb({ wasm: _WASM, store: bridge(store, id), doc: docs.set(id, new Y.Doc()).get(id)! } as any)),
-                kill: (id) => void (nodes.delete(id), docs.delete(id)),
-                run: (id, op) => nodes.get(id).run(op),
-                execute: (id, codes) => nodes.get(id).execute(codes),
-                compile: (id, op) => nodes.get(id).compile(op, nodes.get(id).stat()),
-                stat: (id) => nodes.get(id).stat(),
-                view: (id) => [...docs.get(id)!.getMap('view').entries()].sort(([a], [b]) => (a < b ? -1 : 1)),
+                boot: (id, store) => void _nodes.set(id, createDb({ wasm: _WASM, store: _bridge(store, id), doc: _docs.set(id, new Y.Doc()).get(id)! } as any)),
+                kill: (id) => void (_nodes.delete(id), _docs.delete(id)),
+                run: (id, op) => _nodes.get(id).run(op),
+                execute: (id, codes) => _nodes.get(id).execute(codes),
+                compile: (id, op) => _nodes.get(id).compile(op, _nodes.get(id).stat()),
+                stat: (id) => _nodes.get(id).stat(),
+                view: (id) => [..._docs.get(id)!.getMap('view').entries()].sort(([a], [b]) => (a < b ? -1 : 1)),
                 csv: (file, bytes) => _opsOf(file, bytes),
         }
-        const t = createTest({ ...options, send: async ([kind, ...args]) => HOST[kind](...args) })
+        const t = createTest({ ...options, send: async ([kind, ...args]) => _HOST[kind](...args) })
         return t
 }

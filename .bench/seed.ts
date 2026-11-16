@@ -3,7 +3,7 @@ import { explore, print } from '@db/test'
 import { K, fixtures, sim } from './sim.ts'
 import type { Report, Step } from '@db/test'
 
-const [_seed = '0', _steps = '60', _mode = ''] = process.argv.slice(4)
+const [_seed = '0', _count = '60', _mode = ''] = process.argv.slice(4)
 
 const _play = (steps: Step[], title: string): Promise<Report> => sim({ title }).play(steps)
 
@@ -18,17 +18,17 @@ const _shrink = async (steps: Step[], key: string) => {
         return kept
 }
 
-const { region, steps } = explore({ seed: Number(_seed), steps: Number(_steps), fixtures: await fixtures(), K })
+const { region: _region, steps: _steps } = explore({ seed: Number(_seed), steps: Number(_count), fixtures: await fixtures(), K })
 
-const _title = `seed ${_seed}: ${region.use} / ${region.event} / size ${region.size} / delta ${region.deltas}`
+const _title = `seed ${_seed}: ${_region.use} / ${_region.event} / size ${_region.size} / delta ${_region.deltas}`
 
-const _report = await _play(steps, _title)
+const _report = await _play(_steps, _title)
 
 const _key = _keyOf(_report)
 
 const _file = _key ? `.bench/fails/${_seed.padStart(6, '0')}.ts` : `.bench/out/seed-${_seed}.ts`
 
-const _kept = _key && _mode === 'shrink' ? await _shrink(steps, _key) : steps
+const _kept = _key && _mode === 'shrink' ? await _shrink(_steps, _key) : _steps
 
 mkdirSync(new URL('./out/', import.meta.url), { recursive: true })
 
@@ -36,4 +36,4 @@ mkdirSync(new URL('./fails/', import.meta.url), { recursive: true })
 
 writeFileSync(new URL(`../${_file}`, import.meta.url), print(_kept, `${_title}${_key ? ` / ${_key}` : ''}`))
 
-export default { ..._report, seed: Number(_seed), region: { use: region.use, event: region.event, size: region.size }, file: _file, K }
+export default { ..._report, seed: Number(_seed), region: { use: _region.use, event: _region.event, size: _region.size }, file: _file, K }

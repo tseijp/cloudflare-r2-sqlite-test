@@ -27,7 +27,7 @@ export const seeOf = (reg: Record<string, any>, seq: number, want: any): Code[] 
         const isLinked = seqs.includes(seq) && isOk(reg['P.out']) && seq <= (reg['P.stat']?.deltas ?? 0)
         return [
                 ...(want.exists === undefined ? [] : [check(axis, seqs.includes(seq) === want.exists, `object ${seq} は${want.exists ? '在る' : '無い'}。観測 ${json(seqs)}`, known)]),
-                ...(want.linked === undefined ? [] : [check(axis, isLinked === want.linked, `object ${seq} はchain に${want.linked ? '繋がる' : '繋がらない'}。観測 deltas ${reg['P.stat']?.deltas}`, known)]),
+                ...(want.linked === undefined ? [] : [check(axis, isLinked === want.linked, `object ${seq} は chain に${want.linked ? '繋がる' : '繋がらない'}。観測 deltas ${reg['P.stat']?.deltas}`, known)]),
                 ...(want.seqs ? [check(axis, isSame(seqs, want.seqs), `store の object は ${json(want.seqs)}。観測 ${json(seqs)}`, known)] : []),
         ]
 }

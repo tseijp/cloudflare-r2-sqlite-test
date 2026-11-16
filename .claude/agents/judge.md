@@ -25,7 +25,7 @@ tools: Read, Bash
 | 3.2      | 条件無しの put。put が reject した後に store を確かめずに次を書く経路                 |
 | 3.3      | chain を確かめずに delta を適用する経路。image を書き直した後に古い delta が効く経路      |
 | 3.4      | image が 1 chunk なのに delta を書く経路                                              |
-| 3.5      | 汚れた page が無いのに store を呼ぶ経路。1 回の save で put が 2 回走る経路           |
+| 3.5      | dirty な page が無いのに store を呼ぶ経路。1 回の save で put が 2 回走る経路           |
 | 3.6      | SQL を通さずに view を書く経路。書き込みの後に `refresh` が無い命令列                 |
 | 3.7      | 装飾の delete が本体と別の transaction になる命令列。行や列が無いのに装飾が入る文     |
 | 3.8      | compiler が store、doc、時刻、乱数を読む箇所。executer が命令の中身を見て分岐する箇所 |
