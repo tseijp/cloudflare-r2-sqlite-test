@@ -35,7 +35,7 @@ export const Sheet = ({ snap, dispatch }: { snap: Snap; dispatch: Dispatch }) =>
                 turn.current = 0
         }
         useEffect(() => (drop.ref(root.current), () => drop.ref(null)), [])
-        useEffect(() => void (snap.edit || root.current?.focus()), [!snap.edit])
+        useEffect(() => void (snap.edit || root.current?.focus({ preventScroll: true })), [!snap.edit])
         return (
                 <div ref={root} tabIndex={0} onKeyDown={onKey} onWheel={onWheel} className="overflow-x-auto rounded-xl border border-[#d9d9d9] bg-white outline-none">
                         <div className="relative select-none" style={{ width: (total + _GUTTER) * SQUARE, height: (ROWS + 2) * SQUARE, backgroundImage: _GRID, backgroundSize: `${SQUARE}px ${SQUARE}px` }}>

@@ -1,0 +1,10 @@
+{
+        "name": "@db/test-compiler-plan-procedural-tmp",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/test-share": "workspace:*",
+                "@db/test-compiler-share": "workspace:*"
+        }
+}

@@ -1,0 +1,10 @@
+{
+        "name": "@db/test-executer-tmp-procedural-tmp",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/test-share": "workspace:*",
+                "@db/test-executer-share": "workspace:*"
+        }
+}

@@ -83,8 +83,8 @@ flowchart LR
 
 ```
 src/server/db                      createDb(input) → { run, compile, execute, stat }
-├─ packages/share                  定数と型
-├─ packages/compiler               compile(op, stat) = plan(parse(op), stat)
+├─ packages/procedural/share       定数と型
+├─ packages/declarative/compiler   compile(op, stat) = plan(parse(op), stat)
 │  ├─ declarative/parse            命令ごとの field と検査の表        └─ procedural/check   検査の関数
 │  ├─ declarative/plan             命令ごとの命令列
 │  │  ├─ declarative/sync          開く、保存 (delta か merge かの式)
@@ -93,18 +93,18 @@ src/server/db                      createDb(input) → { run, compile, execute, 
 │  │  ├─ declarative/view          窓、SQL、undo
 │  │  └─ procedural/share          system table の定義、SQL の組み立て
 │  └─ procedural/share             undo 用の key と値の形
-└─ packages/executer               physical な命令 14 種と装置の対応表
+└─ packages/declarative/executer   physical な命令 14 種と装置の対応表
    ├─ declarative/sqlite           wasm の接続、文の実行、読み取り専用の実行
    ├─ declarative/page             page 層 (SQLite に見せる file)
    ├─ declarative/store            image と delta の読み書き         └─ procedural/codec   object の形と gzip
    └─ declarative/tree             view の登録と反映、undo
 
 src/client/db                      createGrid(input) → { Grid, dispatch, compile }
-├─ packages/share                  定数と型
-├─ packages/compiler               compile(event, snap) = plan(parse(event, snap), snap)
+├─ packages/procedural/share       定数と型
+├─ packages/declarative/compiler   compile(event, snap) = plan(parse(event, snap), snap)
 │  ├─ declarative/parse            key・wheel・file を操作に読み替え  └─ procedural/csv     CSV の読み取り
 │  └─ declarative/plan             操作ごとの命令列                   └─ procedural/name, cursor
-└─ packages/executer               state (局所状態) と send (server へ) の実行
+└─ packages/declarative/executer   state (局所状態) と send (server へ) の実行
    ├─ declarative/state            局所状態と tree の読み出し
    ├─ declarative/wire             送信の直列化
    └─ declarative/dom              方眼紙の描画                       └─ procedural/event   drag と drop

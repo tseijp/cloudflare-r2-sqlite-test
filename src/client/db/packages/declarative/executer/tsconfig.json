@@ -10,10 +10,10 @@
                                 "../../procedural/share/src/index.ts"
                         ],
                         "@db/client-executer-state": [
-                                "./packages/declarative/state/src/index.ts"
+                                "./packages/declarative/state/src/index.tsx"
                         ],
                         "@db/client-executer-wire": [
-                                "./packages/declarative/wire/src/index.ts"
+                                "./packages/declarative/wire/src/index.tsx"
                         ],
                         "@db/client-executer-dom": [
                                 "./packages/declarative/dom/src/index.tsx"

@@ -14,7 +14,7 @@ const _id = String(_doc.clientID)
 
 const _send = async (op: object) => {
         const res = await fetch(_url, { method: 'POST', body: JSON.stringify(op) })
-        const { value, error } = await res.json()
+        const { value, error } = await res.json<any>()
         if (error !== undefined) return Promise.reject(new Error(error))
         return value
 }

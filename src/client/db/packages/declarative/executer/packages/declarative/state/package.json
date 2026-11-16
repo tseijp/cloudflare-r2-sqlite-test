@@ -2,7 +2,7 @@
         "name": "@db/client-executer-state",
         "private": true,
         "type": "module",
-        "exports": "./src/index.ts",
+        "exports": "./src/index.tsx",
         "dependencies": {
                 "@db/client-share": "workspace:*"
         }
