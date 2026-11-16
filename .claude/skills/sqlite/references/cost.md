@@ -32,33 +32,33 @@ A の項は「変化があった save の回数」でしか減らせない。1 �
 
 image は CHUNK 枚 (512 page = 2 MiB) ごとに独立に圧縮して並べ、先頭に各 chunk の長さの表を置く。range GET の単位は chunk である。
 
-| image の大きさ   | 開くときの GET      | 窓 1 つを読む GET        | save                      |
+| image の大きさ   | 開くときの GET      | window 1 つを読む GET        | save                      |
 | ---------------- | ------------------- | ------------------------ | ------------------------- |
 | 1 chunk 以内     | 1 (全体が手に入る)  | 0                        | 毎回 image を 1 PUT       |
 | 2 chunk 以上     | 1 + delta 数 + 1    | 触れた chunk のうち未取得の数 | delta を 1 PUT。溜まったら image を 1 PUT |
 
-chunk を大きくすると GET は減り、memory は増える。memory に置く chunk は ROOM 個までで、古い順に捨てる。捨てた chunk は必要になったときに取り直す。page 層が持つ memory は「ROOM × chunk + 保存前の page + delta の page」で、最後の 2 つは次節の規則で 1 chunk ぶん未満に抑える。
+chunk を大きくすると GET は減り、memory は増える。memory に置く chunk は ROOM 個までで、古い順に破棄する。破棄した chunk は必要になったときに取り直す。page 層が持つ memory は「ROOM × chunk + 保存前の page + delta の page」で、最後の 2 つは次節の規則で 1 chunk ぶん未満に抑える。
 
-rowid 順に追記した table の page は確保した順に file に並ぶ (leaf が続き、溢れた時点で interior が挟まる)。`_id` の範囲読みが触れるのは root から leaf までの経路と連続する leaf で、触れる chunk 数は測っていない。並べ替えや集計は全 leaf を読むので、image の chunk 数だけ GET する。chunk 数が ROOM を超える database では、読み終えた時点で先頭側の chunk を捨てているので、同じ走査を繰り返すたびに (chunk 数 − 1) 回 GET する。6 chunk の database で、全走査 1 回につき 5 回を観測した (`.bench/issues/006.md`)。稼働秒の単価は 128 MB ぶんで固定で、使った memory の量には依らないので、ROOM を増やしても請求は増えない。増えるのは memory の上限 (128 MB) までの距離である。
+rowid 順に追記した table の page は確保した順に file に並ぶ (leaf が続き、溢れた時点で interior が挟まる)。`_id` の範囲読みが触れるのは root から leaf までの経路と連続する leaf で、触れる chunk 数は測っていない。並べ替えや集計は全 leaf を読むので、image の chunk 数だけ GET する。chunk 数が ROOM を超える database では、読み終えた時点で先頭側の chunk を破棄しているので、同じ走査を繰り返すたびに (chunk 数 − 1) 回 GET する。6 chunk の database で、全走査 1 回につき 5 回を観測した (`.bench/issues/006.ts`)。稼働秒の単価は 128 MB ぶんで固定で、使った memory の量には依らないので、ROOM を増やしても請求は増えない。増えるのは memory の上限 (128 MB) までの距離である。
 
-## 4. delta を持ち越すか、image に畳むか
+## 4. delta を持ち越すか、image に merge するか
 
-delta を 1 つ持ち越すと、以後の open のたびに GET が 1 回増える。image に畳む (merge) と、古い image 全体の GET 1 回と、image 全体の転送が要る。どちらを選んでも PUT は 1 回なので、比べるのは GET と転送だけである。
+delta を 1 つ持ち越すと、以後の open のたびに GET が 1 回増える。merge すると、古い image 全体の GET 1 回と、image 全体の転送が要る。どちらを選んでも PUT は 1 回なので、比べるのは GET と転送だけである。
 
 ```
 持ち越しの累計 (GET 換算)   = 1 + 2 + … + N = N(N + 1) ÷ 2        N は今ある delta の数
-畳む費用 (GET 換算)         = 1 + 2 × pages ÷ SWAP                SWAP は GET 1 回と等価な page 数
+merge の費用 (GET 換算)  = 1 + 2 × pages ÷ SWAP                SWAP は GET 1 回と等価な page 数
 ```
 
-累計が畳む費用に並んだ save で畳む。先の利用回数を知らずに決める規則としては、最良の決め方の 2 倍以内に収まる (ski rental)。累計の式は、save 1 回につき open が 1 回ある利用での値である。save が続く利用と open が続く利用での比は測っていない (9 節の「最良」で測る)。
+累計が merge の費用に並んだ save で merge する。先の利用回数を知らずに決める規則としては、最良の決め方の 2 倍以内に収まる (ski rental)。累計の式は、save 1 回につき open が 1 回ある利用での値である。save が続く利用と open が続く利用での比は測っていない (9 節の「最良」で測る)。
 
-| pages             | 畳むまでの delta 数 |
+| pages             | merge するまでの delta 数 |
 | ----------------- | ------------------- |
 | 600               | 2                   |
 | 2,048             | 2                   |
 | 8,192 (上限)      | 4                   |
 
-加えて、delta の page と保存前の page の合計が 1 chunk ぶんに達したら畳む。これは費用ではなく memory の上限のための規則である。
+加えて、delta の page と保存前の page の合計が 1 chunk ぶんに達したら merge する。これは費用ではなく memory の上限のための規則である。
 
 SWAP = 2048 は「GET 1 回 = 0.225 秒 = 転送 8 MiB ぶん」と置いた値で、転送速度は測っていない。測ったらこの定数だけを直す。
 
@@ -96,7 +96,7 @@ page size を S、予約領域を除いた大きさを U とする。table の l
 
 ## 8. yjs
 
-view は問い合わせ結果を 1 行 1 key で持つ。key は `<view 名>/<連番>` で、scroll しても key は増えない (同じ連番を上書きする)。行の `_id` を key にすると、通り過ぎた行の数だけ削除済みの key が doc に残る。1 cell の編集で送られるのは、その行の key 1 つの上書きである。undo の履歴は `edit` map だけを対象にするので、窓の入れ替えは履歴に入らない。
+view は問い合わせ結果を 1 行 1 key で持つ。key は `<view 名>/<連番>` で、scroll しても key は増えない (同じ連番を上書きする)。行の `_id` を key にすると、通り過ぎた行の数だけ削除済みの key が doc に残る。1 cell の編集で送られるのは、その行の key 1 つの上書きである。undo の履歴は `edit` map だけを対象にするので、window の入れ替えは履歴に入らない。
 
 ## 9. 丸ごと保存、最良との比較
 
@@ -131,7 +131,7 @@ PUT は GET の 12.5 倍 (4.50 ÷ 0.36)、delete は 0、転送は SWAP page で
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 観測の転送   | get で受けた byte と put で送った byte の合計 ÷ PAGE。圧縮後の値である                                                                                            |
 | 式の転送     | 表の転送 page は圧縮前の値である。観測と比べるときは、この方式、丸ごと保存、最良のどれにも、その時点の store の image の圧縮比 (image の byte ÷ (`base` × PAGE)) を掛ける |
-| SQL の読み   | どの chunk が memory にあるかは公開面から見えないので、式の値には観測した get をそのまま入れる。丸ごと保存では 0 である                                           |
+| SQL の読み   | どの chunk が memory にあるかは製品の API から見えないので、式の値には観測した get をそのまま入れる。丸ごと保存では 0 である                                           |
 | 最良の制約   | 製品と同じ。delta は `base` > CHUNK のときだけ、save の後の `patch + dirty` は CHUNK 未満、delta は SLOTS 個まで。SQL の読みは選び方に依らないものとして除く      |
 | 4 節との関係 | 4 節の「最良の 2 倍以内」は、この最良に対する比で確かめる                                                                                                         |
 | 入れないもの | memory の差 (この方式は ROOM × CHUNK + 保存前の page + delta の page、丸ごと保存は全 page) と稼働秒                                                               |

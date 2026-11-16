@@ -2,7 +2,7 @@
         "name": "@db/client-compiler-plan",
         "private": true,
         "type": "module",
-        "exports": "./src/index.ts",
+        "exports": "./src/index.tsx",
         "dependencies": {
                 "@db/client-share": "workspace:*",
                 "@db/client-compiler-plan-cursor": "workspace:*",

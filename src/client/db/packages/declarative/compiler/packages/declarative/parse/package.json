@@ -2,7 +2,7 @@
         "name": "@db/client-compiler-parse",
         "private": true,
         "type": "module",
-        "exports": "./src/index.ts",
+        "exports": "./src/index.tsx",
         "dependencies": {
                 "@db/client-share": "workspace:*",
                 "@db/client-compiler-parse-csv": "workspace:*"

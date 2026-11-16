@@ -1,0 +1,23 @@
+{
+        "extends": "../../../../../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@db/test-share": [
+                                "../../../../../procedural/share/src/index.ts"
+                        ],
+                        "@db/test-executer-share": [
+                                "../../procedural/share/src/index.ts"
+                        ],
+                        "@db/test-executer-host-flow": [
+                                "./packages/procedural/flow/src/index.ts"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

@@ -20,7 +20,7 @@ tools: Read, Bash
 | 後始末               | 行、列、page の削除や列名の変更で、装飾の文が同じ transaction に無い                     |
 | 無い位置への書き込み | 装飾の insert に、行と列の存在を確かめる条件が無い                                       |
 | index                | page table に PRIMARY KEY 以外の index や UNIQUE がある                                  |
-| 窓の読み             | `offset` や `count(*)` で位置を決めている。`_id` の範囲読みになっていない                |
+| window の読み             | `offset` や `count(*)` で位置を決めている。`_id` の範囲読みになっていない                |
 | 値の渡し方           | 値を SQL の文に埋めている。名前を囲まずに連結している                                    |
 | 全体の書き直し       | 操作のたびに table を作り直している。`DROP COLUMN` 以外で table 全体を書く               |
 | system table         | 名前が `_` で始まらない。`WITHOUT ROWID` でない                                          |

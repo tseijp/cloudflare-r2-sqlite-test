@@ -77,10 +77,21 @@ miniflare は R2 の模擬で、本物の R2 で確かめたものではない�
 | 同期 server は room が空になったときに保存 hook を呼ぶ   | 誤り。y-partyserver 2.2.0 は呼ばない。アプリが `onClose` で save を呼ぶ                |
 | 変更 page を知るには WAL が要る                          | 不要。VFS の `xWrite` が書かれた page 番号をそのまま受け取る                            |
 | 小さい file は丸ごと、大きい file は差分のほうが PUT が安い | 誤り。R2 の PUT は大きさに依らず 1 回。分かれ目は memory と開くときの GET で決まる     |
-| 開くには object の一覧 (list) が要る                     | 不要。delta は番号で辿れ、前の object の etag を持つので順に GET すれば鎖が分かる       |
+| 開くには object の一覧 (list) が要る                     | 不要。delta は番号で辿れ、前の object の etag を持つので順に GET すれば chain が分かる       |
 | page 単位の索引を object の末尾に置く                    | 不要。image は chunk の長さの表を先頭に持ち、delta は丸ごと読む                         |
 | lz4 を自前で持つ                                         | 不要。`CompressionStream('gzip')` が workerd、node、browser にある                      |
 
 ## 7. 確かめていないこと
 
 workerd の上での起動、本物の R2 での条件付き put、転送速度 (SWAP の根拠)、gzip の圧縮比、範囲読みが触れる chunk 数、Asyncify の stack の深さの余裕、同じ room の Durable Object が 2 つ同時に動く条件と頻度、reject を返した put が store に入っている頻度、Durable Object の memory の合計。
+
+## 8. 検証 code で確かめたこと
+
+| 事実                                                                                                              | 確かめ方 |
+| ----------------------------------------------------------------------------------------------------------------- | -------- |
+| `execute(codes)` は最後の命令の結果を返す。`read` は `[列名, ...行]`、`sql` は行の配列である                       | 実行     |
+| logical な `sql` は `pragma` を `not authorized` で reject する。`pragma integrity_check` は physical な `sql` で実行できる | 実行 |
+| `open` の前の `stat()` は全て 0 を返し、`compile({ type: 'save' }, stat)` は `[]` を返す                          | 実行     |
+| module が `then` という名前を export すると、その module の `import()` は終わらない (namespace が thenable になる) | 実行     |
+| vite 8 の module runner (`createServerModuleRunner`) は、`packages()` の plugin だけで `@db/server` と `@db/client` を node で import できる | 実行 |
+| 1 つの process で seed を続けて実行すると、26 個目の付近で process が SIGKILL された。seed ごとに child process を分けると起きない | 実行 |

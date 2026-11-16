@@ -1,0 +1,44 @@
+{
+        "extends": "../../../../../../tsconfig.json",
+        "compilerOptions": {
+                "types": [
+                        "vite/client",
+                        "../../../../../../worker-configuration.d.ts"
+                ],
+                "paths": {
+                        "@db/server-share": [
+                                "../../procedural/share/src/index.ts"
+                        ],
+                        "@db/server-compiler-parse": [
+                                "./packages/declarative/parse/src/index.tsx"
+                        ],
+                        "@db/server-compiler-share": [
+                                "./packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/server-compiler-parse-check": [
+                                "./packages/declarative/parse/packages/procedural/check/src/index.ts"
+                        ],
+                        "@db/server-compiler-plan": [
+                                "./packages/declarative/plan/src/index.tsx"
+                        ],
+                        "@db/server-compiler-plan-sync": [
+                                "./packages/declarative/plan/packages/declarative/sync/src/index.tsx"
+                        ],
+                        "@db/server-compiler-plan-share": [
+                                "./packages/declarative/plan/packages/procedural/share/src/index.ts"
+                        ],
+                        "@db/server-compiler-plan-table": [
+                                "./packages/declarative/plan/packages/declarative/table/src/index.tsx"
+                        ],
+                        "@db/server-compiler-plan-row": [
+                                "./packages/declarative/plan/packages/declarative/row/src/index.tsx"
+                        ],
+                        "@db/server-compiler-plan-view": [
+                                "./packages/declarative/plan/packages/declarative/view/src/index.tsx"
+                        ]
+                }
+        },
+        "include": [
+                "src"
+        ]
+}

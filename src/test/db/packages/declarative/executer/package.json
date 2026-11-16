@@ -1,0 +1,13 @@
+{
+        "name": "@db/test-executer",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.tsx",
+        "dependencies": {
+                "@db/test-share": "workspace:*",
+                "@db/test-executer-host": "workspace:*",
+                "@db/test-executer-judge": "workspace:*",
+                "@db/test-executer-store": "workspace:*",
+                "@db/test-executer-share": "workspace:*"
+        }
+}

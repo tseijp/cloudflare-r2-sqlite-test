@@ -1,0 +1,11 @@
+{
+        "name": "@db/test",
+        "private": true,
+        "type": "module",
+        "exports": "./src/index.ts",
+        "dependencies": {
+                "@db/test-compiler": "workspace:*",
+                "@db/test-executer": "workspace:*",
+                "@db/test-share": "workspace:*"
+        }
+}

@@ -5,21 +5,22 @@ description: 方眼紙型 spreadsheet の 1 file を 1 つの SQLite database �
 
 # sqlite
 
-1 つの file は 1 つの SQLite database で、Durable Object が唯一の writer である。database の page は object storage に「image 1 つ + delta の鎖」として置かれ、SQL が必要とした部分だけが memory に来る。書き込みは logical な命令を compiler が physical な命令の列に変え、executer が上から実行する。
+1 つの file は 1 つの SQLite database で、Durable Object が唯一の writer である。database の page は object storage に「image 1 つ + delta の chain」として置かれ、SQL が必要とした部分だけが memory に来る。書き込みは logical な命令を compiler が physical な命令の列に変え、executer が上から実行する。
 
 ## 1. 用語
 
 | 言葉      | 意味                                                                                 | DBMS の言葉での位置づけ              |
 | --------- | ------------------------------------------------------------------------------------ | ------------------------------------ |
 | page      | SQLite の 4096 byte の固定長 block                                                   | pager が扱う単位                     |
-| page 層   | VFS として SQLite に file を見せる層。chunk の cache、保存前の page、汚れた page 番号 | buffer pool + dirty page table       |
+| page 層   | VFS として SQLite に file を見せる層。chunk の cache、保存前の page、dirty な page の番号 | buffer pool + dirty page table       |
 | chunk     | 連続する 512 page。image の圧縮と range GET の単位                                   | extent                               |
 | image     | 全 page を chunk ごとに gzip して並べた object (番号 0)                              | checkpoint 済みの database file      |
 | delta     | 1 回の save で書き換わった page の集合 (番号 1 〜)                                   | redo log の 1 segment (page image)   |
-| 鎖        | delta が 1 つ前の object の etag を持つことで決まる順序                              | log sequence の連続性                |
-| merge     | image と全 delta と汚れた page を 1 つの image に書き直すこと                        | checkpoint                           |
+| chain     | delta が 1 つ前の object の etag を持つことで決まる順序                              | log sequence の連続性                |
+| merge     | image と全 delta とdirty な page を 1 つの image に書き直すこと                        | checkpoint                           |
 | view      | 登録された問い合わせと、その結果を yjs に載せたもの                                  | materialized view                    |
-| logical な命令 | 利用者と LLM がしたいこと (`cell`、`row.add`、`window`、`save` …)               | SQL 文に当たる                       |
+| window    | 1 つの client が表示している行の範囲 (page、top、size)。view を登録する単位            | cursor の範囲                        |
+| logical な命令 | user と LLM がしたいこと (`cell`、`row.add`、`window`、`save` …)               | SQL 文に当たる                       |
 | physical な命令 | 装置 1 つへの操作 (`sql`、`view`、`push`、`merge` …)                           | bytecode に当たる                    |
 
 ## 2. 構成
@@ -37,7 +38,7 @@ flowchart LR
         X --> S[sqlite<br>wasm]
         S -->|xRead / xWrite| P[page 層]
         X --> T[tree<br>view · edit · undo]
-        X --> O[storage<br>image · delta の鎖]
+        X --> O[storage<br>image · delta の chain ]
         P -.->|無い chunk| O
     end
     O -->|get / put / delete| R[(object storage)]
@@ -52,13 +53,13 @@ flowchart LR
 | `@db/server-executer`            | declarative | physical な命令 14 種と装置の対応表                          |
 | `@db/server-executer-sqlite`     | declarative | wasm の接続、文の実行、読み取り専用の実行、rollback          |
 | `@db/server-executer-page`       | declarative | VFS、chunk の cache、保存前の page                           |
-| `@db/server-executer-store`      | declarative | image と delta の読み書き、鎖、compare-and-swap              |
+| `@db/server-executer-store`      | declarative | image と delta の読み書き、chain、compare-and-swap              |
 | `@db/server-executer-tree`       | declarative | view の登録と反映、編集 key、undo                            |
 | `*-share` `*-check` `*-codec` `*-csv` `*-name` `*-cursor` `*-event` | procedural | 状態を持たない関数 |
 
 親は子の package を import でき、子は祖先の `share` だけを import できる。兄弟は import し合わない。境界は各 `package.json` の `dependencies` で、vite の plugin がそれ以外の import を拒む。
 
-検証 code は `test/` の `@test/server` と `@test/client` で、同じ規則で分ける。`test/` の package は `src/` の package を import しない。`.bench/` の scenario が両方を import して結ぶ (score.md 8 節)。
+検証 code は `src/test/db` の `@db/test` で、同じ規則で分ける。`@db/test` は `@db/server` と `@db/client` を import せず、製品の object も引数に受け取らない。3 つの package を結ぶのは `.bench/sim.ts` だけで、data だけをやり取りする (score.md 2 節、8 節)。
 
 ## 3. 不変条件
 
@@ -68,11 +69,11 @@ flowchart LR
 
 ### 3.2. put は必ず compare-and-swap である
 
-image は「前に読んだ etag と同じなら」、delta は「まだ無ければ」で書く。条件が外れたら書かずに止まる。writer が 2 つになっても store は開ける状態のままである。後から書いた側が必ず止まるのは、同じ object を書く save 同士 (merge と merge、push と push) だけで、merge と push の交差では片方の delta が鎖の外になって消える (contract.md 3 節)。
+image は「前に読んだ etag と同じなら」、delta は「まだ無ければ」で書く。条件が外れたら書かずに止まる。writer が 2 つになっても store は開ける状態のままである。後から書いた側が必ず止まるのは、同じ object を書く save 同士 (merge と merge、push と push) だけで、merge と push の交差では片方の delta が chain の外になって消える (contract.md 3 節)。
 
-### 3.3. delta は鎖に繋がっているときだけ有効である
+### 3.3. delta は chain に繋がっているときだけ有効である
 
-delta n は object n − 1 の etag を持つ。image を書き直すと etag が変わるので、古い delta は消し損ねても適用されない。open は鎖の切れ目で読むのを止め、切れた先を消す。
+delta n は object n − 1 の etag を持つ。image を書き直すと etag が変わるので、古い delta は消し損ねても適用されない。open は chain の切れ目で読むのを止め、切れた先を消す。
 
 ### 3.4. delta があるのは image が 2 chunk 以上のときだけである
 
@@ -80,9 +81,9 @@ delta n は object n − 1 の etag を持つ。image を書き直すと etag �
 
 ### 3.5. 変化が無ければ store を呼ばない
 
-save の命令列は `stat` だけから決まり、汚れた page が 0 なら空になる。push か merge かも同じ式で決まる (cost.md 4 節)。汚れた page は「SQLite が file に書いた page」で数える。rollback された transaction が書き戻した page も数に入るので、その直後の save は内容の同じ page を put する (`.bench/issues/004.md`)。
+save の命令列は `stat` だけから決まり、dirty な page が 0 なら空になる。push か merge かも同じ式で決まる (cost.md 4 節)。dirty な page は「SQLite が file に書いた page」で数える。rollback された transaction が書き戻した page も数に入るので、その直後の save は内容の同じ page を put する (`.bench/issues/004.ts`)。
 
-### 3.6. SQL だけが正で、tree は写しである
+### 3.6. SQL だけが正で、tree は copy である
 
 行と装飾を持つのは SQLite だけである。tree の view は、書き込みのたびに登録済みの問い合わせを実行し直して作る。tree を先に書いて後から SQL に流す経路は、undo の 1 本だけで、それも compiler を通る。
 
@@ -94,7 +95,7 @@ save の命令列は `stat` だけから決まり、汚れた page が 0 なら�
 
 compiler は `(op, stat)` から命令列を返すだけで、何も読まず何も書かない。executer は命令を上から実行し、cell や列名の意味を知らない。命令列の途中で失敗したら、開いている transaction を rollback する。
 
-### 3.9. 利用者の文字列は SQL の文に入らない
+### 3.9. user の文字列は SQL の文に入らない
 
 値は必ず bind する。名前は drizzle が識別子として囲み、その前に parse が `_` 始まり、`sqlite_` 始まり、`rowid`、制御文字を拒む。自由な SQL は authorizer が読み取り以外を拒む状態でしか実行しない。
 
@@ -119,14 +120,15 @@ compiler は `(op, stat)` から命令列を返すだけで、何も読まず何
 
 | 知りたいこと                                   | file                     |
 | ---------------------------------------------- | ------------------------ |
-| 検証 code が触れてよい面、object の形、命令の表 | `references/contract.md` |
+| 検証 code が使ってよい API、object の形、命令の表 | `references/contract.md` |
 | 費用の式と、そこから出た定数                   | `references/cost.md`     |
 | table の正規形と崩し方                         | `references/tables.md`   |
-| 方眼紙、窓、装飾の付き先、undo                 | `references/grid.md`     |
+| 方眼紙、window、装飾の付き先、undo                 | `references/grid.md`     |
 | 外部の事実と確かめ方                           | `references/errata.md`   |
 | 検証に使うデータ                               | `references/fixtures.md` |
-| 検証の 2 つの性質、状態空間、判定、構成、台帳  | `references/score.md`    |
+| seed が決める state の境界、scenario の種類、DST API | `references/space.md`  |
+| 検証の 2 つの性質、判定、点、構成、ledger      | `references/score.md`    |
 
 ## 6. 完了と言える条件
 
-台帳の最新の 1 件が今の `src/` に対するもので、崩れた判定が 0 件であるか、崩れた判定の全てに原因と再現手順が付いていること。点数だけの報告は進捗である。
+ledger の最新の 1 件が今の `src/` に対するもので、失敗した判定が 0 件であるか、失敗した判定の全てに再現できる scenario が付いていること。点数だけの報告は進捗である。

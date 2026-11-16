@@ -10,16 +10,16 @@
                                 "./packages/procedural/share/src/index.ts"
                         ],
                         "@db/client-compiler": [
-                                "./packages/declarative/compiler/src/index.ts"
+                                "./packages/declarative/compiler/src/index.tsx"
                         ],
                         "@db/client-compiler-parse": [
-                                "./packages/declarative/compiler/packages/declarative/parse/src/index.ts"
+                                "./packages/declarative/compiler/packages/declarative/parse/src/index.tsx"
                         ],
                         "@db/client-compiler-parse-csv": [
                                 "./packages/declarative/compiler/packages/declarative/parse/packages/procedural/csv/src/index.ts"
                         ],
                         "@db/client-compiler-plan": [
-                                "./packages/declarative/compiler/packages/declarative/plan/src/index.ts"
+                                "./packages/declarative/compiler/packages/declarative/plan/src/index.tsx"
                         ],
                         "@db/client-compiler-plan-cursor": [
                                 "./packages/declarative/compiler/packages/declarative/plan/packages/procedural/cursor/src/index.ts"
@@ -28,13 +28,13 @@
                                 "./packages/declarative/compiler/packages/declarative/plan/packages/procedural/name/src/index.ts"
                         ],
                         "@db/client-executer": [
-                                "./packages/declarative/executer/src/index.ts"
+                                "./packages/declarative/executer/src/index.tsx"
                         ],
                         "@db/client-executer-state": [
-                                "./packages/declarative/executer/packages/declarative/state/src/index.ts"
+                                "./packages/declarative/executer/packages/declarative/state/src/index.tsx"
                         ],
                         "@db/client-executer-wire": [
-                                "./packages/declarative/executer/packages/declarative/wire/src/index.ts"
+                                "./packages/declarative/executer/packages/declarative/wire/src/index.tsx"
                         ],
                         "@db/client-executer-dom": [
                                 "./packages/declarative/executer/packages/declarative/dom/src/index.tsx"
