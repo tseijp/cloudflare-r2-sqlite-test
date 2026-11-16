@@ -5,6 +5,7 @@ export interface Fixture {
         file: string
         size: number
         line: number
+        page: string
         names: string[]
 }
 

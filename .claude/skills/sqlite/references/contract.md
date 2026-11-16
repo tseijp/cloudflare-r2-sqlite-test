@@ -37,7 +37,7 @@ package 名から file への対応は各 `package.json` の `name` と `exports
 | 性質       | 内容                                                                                                                                                 |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 起動       | `createDb` は何も読まない。最初の `run({ type: 'open' })` で wasm の instance を 1 つ作り、store から読み込む。instance 1 つが wasm の memory を 1 つ持つ |
-| 終了       | instance を閉じる関数は無い。参照を無くすと、その instance は store を呼ばなくなる                                                                   |
+| 終了       | instance を閉じる関数は無い。instance は、命令を実行している間だけ store を呼ぶ                                                                   |
 | 空の store | 空の store を開くと system table を作るので `dirty` は 0 でなく、最初の `save` は image を put する                                                  |
 | 永続       | 同じ `store` に対して新しい `createDb` を作り `open` すると、最後に成功した `save` の状態が開く。`save` していない変更は memory にしか無い           |
 | 失敗       | 命令の配列の途中で失敗すると、開いている transaction は rollback され、`run` / `execute` は reject する。tree は rollback されない                   |

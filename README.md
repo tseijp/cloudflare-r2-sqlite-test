@@ -80,7 +80,7 @@ flowchart LR
 | `src/index.tsx`  | worker         | `/parties/*` の request を Durable Object へ振り分け                                   |
 | `src/server.tsx` | Durable Object | database を開く、命令を受けて実行、save を呼ぶ間隔の決定、object storage (R2) との接続 |
 
-本体は 2 つの package 群。どちらも「compiler / executer / share」に分かれ、その下が再帰的に `packages/{declarative|procedural}/{名前}` へ分かれる構造。declarative は状態を持つ部品と一覧表 (何があるか)、procedural は状態を持たない手続き (どう計算するか)。親は子を import でき、子は祖先の `share` だけを import 可能。兄弟同士の import は禁止で、各 `package.json` の `dependencies` に無い import は build 時に拒否。
+本体は 2 つの package 群 (`src/server/db`、`src/client/db`) で、検証 code (`src/test/db`) も同じ構造。どれも「compiler / executer / share」に分かれ、その下が再帰的に `packages/{declarative|procedural}/{名前}` へ分かれる構造。declarative は状態を持つ部品と一覧表 (何があるか)、procedural は状態を持たない手続き (どう計算するか)。親は子を import でき、子は祖先の `share` だけを import 可能。兄弟同士の import は禁止で、各 `package.json` の `dependencies` に無い import は build 時に拒否。
 
 ```
 src/server/db                      createDb(input) → { run, compile, execute, stat }
@@ -109,6 +109,26 @@ src/client/db                      createGrid(input) → { Grid, dispatch, compi
    ├─ declarative/state            局所状態と tree の読み出し
    ├─ declarative/wire             送信の直列化
    └─ declarative/dom              方眼紙の描画                       └─ procedural/event   drag と drop
+
+src/test/db                        createTest({ send }) → DST API (node、client、replica、store)
+├─ packages/procedural/share       型、step の表
+├─ packages/declarative/compiler   compile(step, facts) = plan(parse(step), facts)
+│  ├─ declarative/parse            step の検査、explore(指定) = storm(story(space(指定)))
+│  │  ├─ declarative/space         seed から state の境界内の 1 つを決める表
+│  │  ├─ declarative/story         use ごとの step
+│  │  ├─ declarative/storm         event ごとの step の挿入
+│  │  └─ procedural/share          擬似乱数、Op の生成
+│  ├─ declarative/plan             plan = book(rule(watch(act(step, facts))))
+│  │  ├─ declarative/act           装置への命令
+│  │  ├─ declarative/watch         観測の命令
+│  │  ├─ declarative/rule          判定の命令
+│  │  ├─ declarative/book          register の更新、費用の記録、次の pass
+│  │  └─ procedural/share          命令と SQL の組み立て
+│  └─ procedural/share             scenario の code の出力
+└─ packages/declarative/executer   physical な命令と装置の対応表、register
+   ├─ declarative/store            模擬 store                         └─ procedural/object  object と呼び出しの集計
+   ├─ declarative/host             製品の instance への request       └─ procedural/flow    hash、行の生成
+   └─ declarative/judge            判定の記録                         └─ procedural/cost    費用の式と最良
 ```
 
 ### 4.3. 命令

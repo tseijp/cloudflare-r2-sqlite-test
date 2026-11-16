@@ -38,7 +38,7 @@ export const fixtures = () =>
                                 const file = relative(_DATA, path)
                                 const head = _headOf(file, 65536)
                                 const [first] = await _opsOf(file, 65536)
-                                return { file, size: statSync(path).size, line: Math.ceil(Buffer.byteLength(head) / first.rows.length), names: first.names as string[] }
+                                return { file, size: statSync(path).size, line: Math.ceil(Buffer.byteLength(head) / first.rows.length), page: first.page as string, names: first.names as string[] }
                         }),
         )
 

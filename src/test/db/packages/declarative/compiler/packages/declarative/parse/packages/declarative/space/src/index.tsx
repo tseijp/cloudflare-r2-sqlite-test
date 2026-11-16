@@ -22,11 +22,9 @@ const _DEPTHS = [
         [5, 8],
 ]
 
-const _pageOf = (file: string) => file.split('/').pop()!.replace(/\.[^.]+$/, '')
-
 const _tableOf = (fixture: Fixture, bytes: number): Table => {
         const used = Math.max(4096, Math.min(fixture.size, Math.round(bytes)))
-        return { file: fixture.file, bytes: used, page: _pageOf(fixture.file), col: fixture.names[0], names: fixture.names, rows: Math.max(1, Math.floor((used / fixture.line) * 0.8)) }
+        return { file: fixture.file, bytes: used, page: fixture.page, col: fixture.names[0], names: fixture.names, rows: Math.max(1, Math.floor((used / fixture.line) * 0.8)) }
 }
 
 export const space = ({ seed, steps = 60, fixtures, K }: Spec): Region => {
